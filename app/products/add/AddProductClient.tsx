@@ -113,7 +113,7 @@ export default function AddProductClient({ categories, collections }: AddProduct
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageUrl: window.location.origin + images[0],
+          imageUrl: images[0].startsWith('http') ? images[0] : (window.location.origin + images[0]),
           categoryName: selectedCategory.name,
         }),
       });
