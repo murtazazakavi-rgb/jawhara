@@ -780,8 +780,8 @@ export default function AddProductClient({ categories, collections }: AddProduct
 
             <button
               onClick={() => {
-                const text = `${successProduct.name}\nPrice: ₹${successProduct.price.toLocaleString('en-IN')}\nCheck it out: ${window.location.origin}/p/${successProduct.name.toLowerCase().replace(/ /g, '-')}`;
-                const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                const text = `${successProduct.name}\nPrice: ₹${Number(successProduct.price).toLocaleString('en-IN')}\nCheck it out: ${window.location.origin}/p/${successProduct.slug}`;
+                const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                 window.open(url, '_blank');
               }}
               className="border border-primary-container text-primary-container px-6 py-3.5 rounded font-label-md text-xs uppercase tracking-wider flex justify-center items-center gap-2 hover:bg-primary-container/5 transition-all"

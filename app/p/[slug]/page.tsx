@@ -34,6 +34,12 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
     notFound();
   }
 
+  // Fetch boutique phone number from system settings
+  const phoneSetting = await prisma.systemSetting.findUnique({
+    where: { key: 'boutiquePhone' },
+  });
+  const boutiquePhone = phoneSetting?.value || '919876543210';
+
   // 2. Fetch similar products (same category, available, excluding self)
   const similarProducts = await prisma.product.findMany({
     where: {
@@ -59,7 +65,7 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
 
   // Construct WhatsApp Inquiry link
   const waText = `Hi Jawhara, I am interested in inquiring about "${product.name}" (Code: ${product.productCode}). Is this piece still available?\nPrice: ₹${Number(product.price).toLocaleString('en-IN')}\nLink: ${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/p/${product.slug}`;
-  const waUrl = `https://wa.me/919876543210?text=${encodeURIComponent(waText)}`; // Placeholder boutique number
+  const waUrl = `https://wa.me/${boutiquePhone}?text=${encodeURIComponent(waText)}`;
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md flex flex-col relative overflow-x-hidden">

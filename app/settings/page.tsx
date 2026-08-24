@@ -22,6 +22,11 @@ export default async function SettingsPage() {
   // 2. Fetch system settings
   const settings = await prisma.systemSetting.findMany();
 
+  // 3. Fetch product categories
+  const categories = await prisma.productCategory.findMany({
+    orderBy: { name: 'asc' },
+  });
+
   // 3. Fetch latest chat metrics for health telemetry
   const lastInboundMsg = await prisma.whatsAppMessage.findFirst({
     where: { direction: MessageDirection.INBOUND },
@@ -106,6 +111,7 @@ export default async function SettingsPage() {
         initialTemplates={templates}
         initialSettings={settings}
         healthStatus={healthStatus}
+        initialCategories={categories}
       />
     </AppShell>
   );

@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { saveSystemSetting, saveWhatsAppTemplate } from './actions';
+import { 
+  saveSystemSetting, 
+  saveWhatsAppTemplate, 
+  createCategoryAction, 
+  toggleCategoryActiveAction 
+} from './actions';
 
 interface Template {
   id?: string;
@@ -16,6 +21,15 @@ interface Setting {
   value: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  code: string;
+  description: string | null;
+  isActive: boolean;
+}
+
 interface SettingsClientProps {
   initialTemplates: Template[];
   initialSettings: Setting[];
@@ -25,17 +39,61 @@ interface SettingsClientProps {
     gemini: { status: string; details: string };
     storage: { status: string; details: string };
   };
+  initialCategories: Category[];
 }
 
 export default function SettingsClient({ 
   initialTemplates, 
   initialSettings, 
-  healthStatus 
+  healthStatus,
+  initialCategories
 }: SettingsClientProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'templates'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'templates' | 'categories'>('profile');
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  // Categories management states
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [catName, setCatName] = useState('');
+  const [catCode, setCatCode] = useState('');
+  const [catDesc, setCatDesc] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  const handleToggleCategory = async (id: string, currentActive: boolean) => {
+    try {
+      const nextActive = !currentActive;
+      const res = await toggleCategoryActiveAction(id, nextActive);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        setCategories(prev => prev.map(c => c.id === id ? { ...c, isActive: nextActive } : c));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!catName.trim() || !catCode.trim()) return;
+    setIsCreatingCategory(true);
+    try {
+      const res = await createCategoryAction({ name: catName, code: catCode, description: catDesc });
+      if (res.error) {
+        alert(res.error);
+      } else if (res.category) {
+        setCategories(prev => [...prev, res.category as Category]);
+        setCatName('');
+        setCatCode('');
+        setCatDesc('');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
 
   // Template editor form states
   const [editingTemplateKey, setEditingTemplateKey] = useState<string | null>(null);
@@ -172,6 +230,23 @@ export default function SettingsClient({
             chevron_right
           </span>
         </button>
+
+        <button 
+          onClick={() => setActiveTab('categories')}
+          className={`w-full text-left p-4 rounded-lg border flex items-center justify-between group transition-colors ${
+            activeTab === 'categories' 
+              ? 'bg-surface-container-low border-outline-variant/50 text-primary' 
+              : 'bg-surface border-transparent text-on-surface-variant hover:bg-surface-container-low'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined">category</span>
+            <span className="font-label-md text-sm">Boutique Categories</span>
+          </div>
+          <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">
+            chevron_right
+          </span>
+        </button>
       </div>
 
       {/* Tab Contents Panel */}
@@ -219,6 +294,19 @@ export default function SettingsClient({
                   disabled={savingKey === 'currency'}
                   value={getSettingVal('currency', 'INR')}
                   onChange={(e) => handleSaveSetting('currency', e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                  Boutique WhatsApp Contact Number (with country code, e.g. 919876543210)
+                </label>
+                <input
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
+                  type="text"
+                  placeholder="e.g. 919876543210"
+                  disabled={savingKey === 'boutiquePhone'}
+                  value={getSettingVal('boutiquePhone', '919876543210')}
+                  onChange={(e) => handleSaveSetting('boutiquePhone', e.target.value)}
                 />
               </div>
             </div>
@@ -405,6 +493,133 @@ export default function SettingsClient({
                   </div>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {/* TAB 4: BOUTIQUE CATEGORIES */}
+        {activeTab === 'categories' && (
+          <section className="bg-surface-container-lowest rounded-xl p-6 md:p-8 border border-outline-variant/30 shadow-sm space-y-8 animate-fade-in">
+            <div>
+              <h2 className="font-display font-medium text-headline-sm text-primary border-b border-outline-variant/20 pb-4">
+                Boutique Categories
+              </h2>
+              <p className="text-on-surface-variant/80 text-xs mt-2">
+                Manage your product category settings. Deactivating a category hides it from the product adding wizard.
+              </p>
+            </div>
+
+            {/* Existing Categories List */}
+            <div className="space-y-4">
+              <h3 className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider">
+                Current Categories
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-3">
+                {categories.map((cat) => (
+                  <div 
+                    key={cat.id} 
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border border-outline-variant/30 rounded-lg bg-surface-container-low/20 gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-label-md text-sm text-on-surface font-semibold">{cat.name}</span>
+                        <span className="bg-secondary-container text-primary text-[10px] font-mono px-1.5 py-0.5 rounded uppercase font-bold">
+                          Code: {cat.code}
+                        </span>
+                      </div>
+                      <p className="font-body-sm text-xs text-on-surface-variant mt-1">
+                        {cat.description || 'No description provided.'}
+                      </p>
+                      <span className="text-[10px] font-mono text-outline block mt-1">
+                        Slug: /{cat.slug}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full ${
+                        cat.isActive 
+                          ? 'bg-success/15 text-success font-semibold' 
+                          : 'bg-outline-variant/30 text-outline-variant'
+                      }`}>
+                        {cat.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <button
+                        onClick={() => handleToggleCategory(cat.id, cat.isActive)}
+                        className={`text-xs px-3 py-1 rounded border transition-colors cursor-pointer ${
+                          cat.isActive 
+                            ? 'border-error text-error hover:bg-error/5' 
+                            : 'border-success text-success hover:bg-success/5'
+                        }`}
+                      >
+                        {cat.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Create New Category Form */}
+            <div className="border-t border-outline-variant/20 pt-6">
+              <h3 className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider mb-4">
+                Add New Category
+              </h3>
+              
+              <form onSubmit={handleCreateCategory} className="space-y-4 max-w-xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                      Category Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Bedspreads"
+                      value={catName}
+                      onChange={(e) => setCatName(e.target.value)}
+                      className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors"
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                      Single/Double-Letter Code * (e.g. "B" or "BD")
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={2}
+                      placeholder="e.g. B"
+                      value={catCode}
+                      onChange={(e) => setCatCode(e.target.value)}
+                      className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors uppercase font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                    Description
+                  </label>
+                  <textarea
+                    placeholder="Short boutique description..."
+                    value={catDesc}
+                    onChange={(e) => setCatDesc(e.target.value)}
+                    rows={2}
+                    className="bg-transparent border border-outline-variant/50 rounded p-2 focus:border-primary outline-none font-body-md text-body-md transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isCreatingCategory}
+                  className="px-6 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-label-md text-sm flex items-center gap-2 cursor-pointer"
+                >
+                  {isCreatingCategory ? 'Creating...' : 'Create Category'}
+                  <span className="material-symbols-outlined text-sm">add</span>
+                </button>
+              </form>
             </div>
           </section>
         )}

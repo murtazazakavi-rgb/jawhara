@@ -45,8 +45,8 @@ export default function ProductDetailsClient({
 
   // WhatsApp Message Generator
   const handleWhatsAppShare = () => {
-    const text = `${product.name}\n${product.shortDesc || ''}\nPrice: ₹${product.price.toLocaleString('en-IN')}\nStatus: ${product.inventoryStatus}\nView: ${window.location.origin}/p/${product.slug}`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const text = `${product.name}\n${product.shortDesc || ''}\nPrice: ₹${Number(product.price).toLocaleString('en-IN')}\nStatus: ${product.inventoryStatus}\nView: ${window.location.origin}/p/${product.slug}`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
 
