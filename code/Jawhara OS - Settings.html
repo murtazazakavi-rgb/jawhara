@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settings - Jawhara OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&amp;family=Hanken+Grotesk:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#755566",
+                        "surface-container-high": "#eae8e6",
+                        "primary-fixed-dim": "#e3bccf",
+                        "on-secondary-fixed-variant": "#554147",
+                        "tertiary": "#615d60",
+                        "on-error": "#ffffff",
+                        "background": "#fbf9f7",
+                        "inverse-primary": "#e3bccf",
+                        "surface-container-low": "#f5f3f1",
+                        "surface-variant": "#e4e2e0",
+                        "surface-bright": "#fbf9f7",
+                        "surface-container-highest": "#e4e2e0",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#2b1422",
+                        "on-secondary-container": "#735d63",
+                        "on-secondary-fixed": "#27171c",
+                        "on-tertiary-fixed-variant": "#494649",
+                        "on-primary-fixed-variant": "#5b3e4e",
+                        "tertiary-container": "#979195",
+                        "surface-dim": "#dbdad8",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-container": "#2e2b2e",
+                        "on-tertiary-fixed": "#1d1b1e",
+                        "on-background": "#1b1c1b",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#e8e0e4",
+                        "on-surface-variant": "#4e4448",
+                        "on-error-container": "#93000a",
+                        "outline-variant": "#d1c3c8",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#755566",
+                        "primary-container": "#ad899b",
+                        "tertiary-fixed-dim": "#cbc5c8",
+                        "surface": "#fbf9f7",
+                        "secondary-fixed-dim": "#dbc0c6",
+                        "inverse-surface": "#30302f",
+                        "outline": "#807479",
+                        "secondary": "#6e595f",
+                        "on-primary-container": "#3e2432",
+                        "primary-fixed": "#ffd8ea",
+                        "surface-container": "#efedec",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#f8dbe2",
+                        "inverse-on-surface": "#f2f0ee",
+                        "secondary-container": "#f5d8e0",
+                        "on-surface": "#1b1c1b",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-mobile": "20px",
+                        "unit": "8px",
+                        "margin-desktop": "64px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Hanken Grotesk"],
+                        "headline-md": ["Playfair Display"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Playfair Display"],
+                        "headline-sm": ["Playfair Display"],
+                        "display-lg": ["Playfair Display"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "500" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen relative pb-24 md:pb-0">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 flat no shadows flex justify-between items-center px-margin-mobile w-full py-4 md:hidden">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity">save_as</span>
+<span class="font-headline-md text-headline-md text-on-surface dark:text-inverse-on-surface tracking-tight">Jawhara OS</span>
+</div>
+</header>
+<!-- Top Nav Desktop -->
+<header class="hidden md:flex bg-surface dark:bg-surface-dim top-0 w-full justify-between items-center px-margin-desktop py-6 z-50 sticky">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity">save_as</span>
+<span class="font-headline-md text-headline-md text-on-surface dark:text-inverse-on-surface tracking-tight">Jawhara OS</span>
+</div>
+<nav class="flex gap-8">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-surface-variant hover:opacity-80 transition-opacity flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">home</span> Home
+            </a>
+<a class="font-label-md text-label-md text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">inventory_2</span> Settings
+            </a>
+<!-- Suppressing FAB on Settings -->
+</nav>
+</header>
+<main class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop pt-8 md:pt-16">
+<div class="mb-12 relative">
+<!-- Decorative Rose Watermark -->
+<span class="material-symbols-outlined absolute -top-10 -right-4 text-[120px] text-primary/5 pointer-events-none z-[-1]" style="font-variation-settings: 'FILL' 1;">local_florist</span>
+<h1 class="font-display-lg text-display-lg mb-2">Settings</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Manage your boutique profile, preferences, and subscriptions.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Settings Sidebar / Navigation Grid -->
+<div class="md:col-span-4 lg:col-span-3 flex flex-col gap-2">
+<a class="p-4 bg-surface-container-low rounded-lg border border-outline-variant/50 flex items-center justify-between group hover:bg-surface-container-high transition-colors" href="#boutique">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">storefront</span>
+<span class="font-label-md text-label-md">Boutique Profile</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</a>
+<a class="p-4 bg-surface rounded-lg border border-transparent hover:bg-surface-container-low transition-colors flex items-center justify-between group" href="#notifications">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Notifications</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">chevron_right</span>
+</a>
+<a class="p-4 bg-surface rounded-lg border border-transparent hover:bg-surface-container-low transition-colors flex items-center justify-between group" href="#team">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">group</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Team Access</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">chevron_right</span>
+</a>
+<a class="p-4 bg-surface rounded-lg border border-transparent hover:bg-surface-container-low transition-colors flex items-center justify-between group" href="#subscription">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant">credit_card</span>
+<span class="font-label-md text-label-md text-on-surface-variant">Subscription</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">chevron_right</span>
+</a>
+</div>
+<!-- Settings Content Area -->
+<div class="md:col-span-8 lg:col-span-9">
+<!-- Boutique Profile Section -->
+<section class="bg-surface-container-lowest rounded-xl p-6 md:p-8 border border-outline-variant/30 mb-8 shadow-sm" id="boutique">
+<h2 class="font-headline-md text-headline-md mb-6 border-b border-outline-variant/20 pb-4">Boutique Profile</h2>
+<div class="flex flex-col md:flex-row gap-8 mb-8">
+<div class="w-32 h-32 rounded-full overflow-hidden shrink-0 border border-outline-variant/50 relative bg-surface-container-low flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-on-surface-variant opacity-50">photo_camera</span>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+<span class="material-symbols-outlined text-white">edit</span>
+</div>
+</div>
+<div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">BOUTIQUE NAME</label>
+<input class="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors" type="text" value="Maison Jawhara"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant">CONTACT EMAIL</label>
+<input class="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors" type="email" value="contact@maisonjawhara.com"/>
+</div>
+<div class="flex flex-col gap-2 md:col-span-2">
+<label class="font-label-md text-label-md text-on-surface-variant">BIO / DESCRIPTION</label>
+<textarea class="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors resize-none" rows="3">Curating sophisticated, minimal aesthetics for the modern professional.</textarea>
+</div>
+</div>
+</div>
+<div class="flex justify-end gap-4 mt-8 pt-6 border-t border-outline-variant/20">
+<button class="px-6 py-2 rounded font-label-md text-label-md text-primary border border-primary hover:bg-primary-container/10 transition-colors">Cancel</button>
+<button class="px-6 py-2 rounded font-label-md text-label-md text-on-primary bg-primary-container hover:bg-primary transition-colors">Save Changes</button>
+</div>
+</section>
+<!-- Notifications Section (Preview) -->
+<section class="bg-surface-container-lowest rounded-xl p-6 md:p-8 border border-outline-variant/30 mb-8 opacity-50 pointer-events-none" id="notifications">
+<h2 class="font-headline-md text-headline-md mb-6 border-b border-outline-variant/20 pb-4">Notifications</h2>
+<div class="flex items-center justify-between py-4 border-b border-outline-variant/20 last:border-0">
+<div>
+<p class="font-label-md text-label-md">New Order Alerts</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">Receive notifications for new purchases.</p>
+</div>
+<div class="w-10 h-6 bg-primary-container rounded-full relative">
+<div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Mobile -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 bg-surface/90 backdrop-blur-md rounded-t-xl border-t border-outline-variant shadow-sm">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 hover:bg-surface-container-high transition-colors p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed scale-110 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-label-sm text-label-sm mt-1">Inventory</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 hover:bg-surface-container-high transition-colors p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-sm text-label-sm mt-1">Team</span>
+</a>
+</nav>
+</body></html>

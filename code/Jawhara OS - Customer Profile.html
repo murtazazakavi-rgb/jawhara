@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Customer Profile - Jawhara OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=Playfair+Display:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#755566",
+                        "surface-container-high": "#eae8e6",
+                        "primary-fixed-dim": "#e3bccf",
+                        "on-secondary-fixed-variant": "#554147",
+                        "tertiary": "#615d60",
+                        "on-error": "#ffffff",
+                        "background": "#fbf9f7",
+                        "inverse-primary": "#e3bccf",
+                        "surface-container-low": "#f5f3f1",
+                        "surface-variant": "#e4e2e0",
+                        "surface-bright": "#fbf9f7",
+                        "surface-container-highest": "#e4e2e0",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#2b1422",
+                        "on-secondary-container": "#735d63",
+                        "on-secondary-fixed": "#27171c",
+                        "on-tertiary-fixed-variant": "#494649",
+                        "on-primary-fixed-variant": "#5b3e4e",
+                        "tertiary-container": "#979195",
+                        "surface-dim": "#dbdad8",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-container": "#2e2b2e",
+                        "on-tertiary-fixed": "#1d1b1e",
+                        "on-background": "#1b1c1b",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#e8e0e4",
+                        "on-surface-variant": "#4e4448",
+                        "on-error-container": "#93000a",
+                        "outline-variant": "#d1c3c8",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#755566",
+                        "primary-container": "#ad899b",
+                        "tertiary-fixed-dim": "#cbc5c8",
+                        "surface": "#fbf9f7",
+                        "secondary-fixed-dim": "#dbc0c6",
+                        "inverse-surface": "#30302f",
+                        "outline": "#807479",
+                        "secondary": "#6e595f",
+                        "on-primary-container": "#3e2432",
+                        "primary-fixed": "#ffd8ea",
+                        "surface-container": "#efedec",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#f8dbe2",
+                        "inverse-on-surface": "#f2f0ee",
+                        "secondary-container": "#f5d8e0",
+                        "on-surface": "#1b1c1b",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-mobile": "20px",
+                        "unit": "8px",
+                        "margin-desktop": "64px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Hanken Grotesk"],
+                        "headline-md": ["Playfair Display"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Playfair Display"],
+                        "headline-sm": ["Playfair Display"],
+                        "display-lg": ["Playfair Display"],
+                        "headline-lg-mobile": ["Playfair Display"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "500" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 flat no shadows flex justify-between items-center px-margin-mobile md:px-margin-desktop w-full py-4 z-50 sticky">
+<div class="flex items-center gap-4">
+<button class="hover:opacity-80 transition-opacity flex items-center justify-center p-2 rounded-full hover:bg-surface-container-high active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="settings_rose">save_as</span>
+</button>
+<span class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-on-surface dark:text-inverse-on-surface tracking-tight">Jawhara OS</span>
+</div>
+<div class="hidden md:flex gap-6">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-surface-variant hover:opacity-80 transition-opacity" href="#">Dashboard</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-surface-variant hover:opacity-80 transition-opacity" href="#">Inventory</a>
+<a class="font-label-md text-label-md text-primary dark:text-primary-fixed hover:opacity-80 transition-opacity border-b-2 border-primary pb-1" href="#">Clients</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-surface-variant hover:opacity-80 transition-opacity" href="#">Orders</a>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow w-full max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-16 pb-32">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6 relative">
+<div class="absolute top-0 right-0 opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-9xl text-primary" data-icon="local_florist">local_florist</span>
+</div>
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface mb-2">Client Portfolio</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Manage and nurture your VIP relationships.</p>
+</div>
+<button class="bg-primary-container text-on-primary hover:opacity-90 transition-opacity px-6 py-3 rounded-lg font-label-md text-label-md flex items-center gap-2 shadow-sm hover:shadow-md">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+                New Client
+            </button>
+</div>
+<!-- Top Clients Section (Bento/Avatars) -->
+<section class="mb-16">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6 border-b border-outline-variant pb-2 inline-block">Top Clients</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+<!-- Avatar 1 -->
+<div class="flex flex-col items-center group cursor-pointer">
+<div class="w-24 h-24 rounded-full overflow-hidden border-2 border-surface-container-high group-hover:border-primary-container transition-colors p-1 mb-3">
+<img alt="Eleanor Vance" class="w-full h-full object-cover rounded-full" data-alt="A sophisticated headshot of a fashionable woman in her 30s, wearing minimalist gold jewelry and a tailored beige blazer. Soft, high-key studio lighting creates a flattering, elegant portrait against a pristine white background. The aesthetic is clean, luxurious, and modern editorial." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnwzzxgBPoTaoG4RTQHKGAoI2wRM9PX9Aa-If0i3U2LyErb-piH6bOb6QsIKVq24eplmpGnf7bA4UHzhBwNadgdtfabNbQZ0xp4mY9hi-Tyc2H6x7eiQvN0tZqepq-CB6ox90iKDgjSik9fYA74CsQcAB7Xks51sYHeblJwRU0bkfjd5FkFONlUGBOAFtDjF3y2-jvaFk9-suPZZ-Ts61yLF40oCKbVk-w44aLtItoms0_sz0B6rHXBg"/>
+</div>
+<span class="font-headline-sm text-headline-sm text-center">Eleanor V.</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1 text-center">Lifetime: $45k</span>
+</div>
+<!-- Avatar 2 -->
+<div class="flex flex-col items-center group cursor-pointer">
+<div class="w-24 h-24 rounded-full overflow-hidden border-2 border-surface-container-high group-hover:border-primary-container transition-colors p-1 mb-3">
+<img alt="Marcus Sterling" class="w-full h-full object-cover rounded-full" data-alt="A portrait of an elegant older gentleman with silver hair, wearing a bespoke navy suit. The lighting is soft and diffused, creating a refined and trustworthy appearance. The background is a very pale warm grey, fitting a high-end luxury brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW-wLyqqmn5CBEY8g09cXHzuaCQOcIHk-4PBzKQm8UKgpoBnRY4CAYL-h-b3hXdlt-QJimk5XlxGxtBgTc-cTyGLYDjll1tvmGtHW4upqFSvjh3GiiDsNXkxMJO2AHCAbeaqEUYxmZuvF1cegJuNB2yN19CLK9PYiqSOwzytVRteyNP_gn06aYrHDsso1xFptkKAdS4qZMi6zP_Bs_5NxgNfagH47kxHBkhkKToWv-_i64coLV7s4ZCg"/>
+</div>
+<span class="font-headline-sm text-headline-sm text-center">Marcus S.</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1 text-center">Lifetime: $38k</span>
+</div>
+<!-- Avatar 3 -->
+<div class="flex flex-col items-center group cursor-pointer">
+<div class="w-24 h-24 rounded-full overflow-hidden border-2 border-surface-container-high group-hover:border-primary-container transition-colors p-1 mb-3">
+<img alt="Chloe Chen" class="w-full h-full object-cover rounded-full" data-alt="A chic portrait of a young woman with a sleek bob haircut, wearing an architectural white silk blouse. The photography style is high-fashion editorial, with a soft blush pink background and delicate rim lighting highlighting her features. The mood is quiet luxury." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwl2DCZorvEUqYdVBIxym0ZpVdbo1Xt7eXj2Nh3Y8cQWbSQcJunMuHbAoWMLcz5lDpkKDbJ5RPYuugrx9C8YoRypvL8OTeR5zpkuyWpeCAK0kV-s_f8jk8x2-CVQDMGSUh9VkQK4LYBdpCOy9bSksrtQEQN9kriYempL0yu1pdYne3A3qtBsEL-Uj2jI9Ovg64OGp5crIR7shtltJ5uQ0mBgbrW_F4dGKrYdH4oqVfw02lfmAI_ashag"/>
+</div>
+<span class="font-headline-sm text-headline-sm text-center">Chloe C.</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1 text-center">Lifetime: $29k</span>
+</div>
+</div>
+</section>
+<!-- CRM List View (Glassmorphism/Minimalist Cards) -->
+<section>
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-md text-headline-md text-on-surface">Client Directory</h2>
+<div class="flex items-center gap-2 text-on-surface-variant bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant/30">
+<span class="material-symbols-outlined text-[18px]" data-icon="search">search</span>
+<input class="bg-transparent border-none outline-none focus:ring-0 font-body-md text-body-md placeholder:text-on-surface-variant/50 w-32 md:w-64" placeholder="Search clients..." type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Header Row (Hidden on mobile) -->
+<div class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-outline-variant font-label-sm text-label-sm text-on-surface-variant">
+<div class="col-span-4">Client Name</div>
+<div class="col-span-3">Status</div>
+<div class="col-span-3">Last Purchase</div>
+<div class="col-span-2 text-right">Total Spend</div>
+</div>
+<!-- Client Card 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-6 md:px-6 md:py-4 hover:shadow-[0px_4px_20px_rgba(117,85,102,0.04)] transition-shadow duration-300 cursor-pointer flex flex-col md:grid md:grid-cols-12 md:items-center gap-4">
+<div class="md:col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-headline-sm text-headline-sm">EV</div>
+<div>
+<div class="font-headline-sm text-headline-sm">Eleanor Vance</div>
+<div class="font-body-md text-body-md text-on-surface-variant md:hidden">Total Spend: $45,200</div>
+</div>
+</div>
+<div class="md:col-span-3">
+<span class="bg-[#E4C8CF] text-on-surface px-3 py-1 rounded font-label-sm text-label-sm">VIP Tier</span>
+</div>
+<div class="md:col-span-3 font-body-md text-body-md text-on-surface-variant">
+<span class="md:hidden font-label-sm text-label-sm mr-2 uppercase">Last Order:</span>Oct 12, 2023
+                    </div>
+<div class="md:col-span-2 md:text-right font-body-md text-body-md hidden md:block">
+                        $45,200
+                    </div>
+</div>
+<!-- Client Card 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-6 md:px-6 md:py-4 hover:shadow-[0px_4px_20px_rgba(117,85,102,0.04)] transition-shadow duration-300 cursor-pointer flex flex-col md:grid md:grid-cols-12 md:items-center gap-4">
+<div class="md:col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-headline-sm text-headline-sm">MS</div>
+<div>
+<div class="font-headline-sm text-headline-sm">Marcus Sterling</div>
+<div class="font-body-md text-body-md text-on-surface-variant md:hidden">Total Spend: $38,500</div>
+</div>
+</div>
+<div class="md:col-span-3">
+<span class="bg-surface-variant text-on-surface px-3 py-1 rounded font-label-sm text-label-sm">Active</span>
+</div>
+<div class="md:col-span-3 font-body-md text-body-md text-on-surface-variant">
+<span class="md:hidden font-label-sm text-label-sm mr-2 uppercase">Last Order:</span>Sep 28, 2023
+                    </div>
+<div class="md:col-span-2 md:text-right font-body-md text-body-md hidden md:block">
+                        $38,500
+                    </div>
+</div>
+<!-- Client Card 3 -->
+<div class="bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-6 md:px-6 md:py-4 hover:shadow-[0px_4px_20px_rgba(117,85,102,0.04)] transition-shadow duration-300 cursor-pointer flex flex-col md:grid md:grid-cols-12 md:items-center gap-4">
+<div class="md:col-span-4 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-headline-sm text-headline-sm">JD</div>
+<div>
+<div class="font-headline-sm text-headline-sm">Jane Doe</div>
+<div class="font-body-md text-body-md text-on-surface-variant md:hidden">Total Spend: $12,400</div>
+</div>
+</div>
+<div class="md:col-span-3">
+<span class="bg-surface-variant text-on-surface px-3 py-1 rounded font-label-sm text-label-sm">Active</span>
+</div>
+<div class="md:col-span-3 font-body-md text-body-md text-on-surface-variant">
+<span class="md:hidden font-label-sm text-label-sm mr-2 uppercase">Last Order:</span>Nov 05, 2023
+                    </div>
+<div class="md:col-span-2 md:text-right font-body-md text-body-md hidden md:block">
+                        $12,400
+                    </div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden bg-surface/90 dark:bg-surface-container-low/90 backdrop-blur-md fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-3 rounded-t-xl border-t border-outline-variant dark:border-outline-variant/20 shadow-sm dark:shadow-none">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-lg p-2" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-lg p-2" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-label-sm text-label-sm mt-1">Items</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-lg p-2" href="#">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+<span class="font-label-sm text-label-sm mt-1">Add</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed scale-110 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-lg p-2" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-sm text-label-sm mt-1">Clients</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim opacity-60 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors rounded-lg p-2" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_bag">shopping_bag</span>
+<span class="font-label-sm text-label-sm mt-1">Orders</span>
+</a>
+</nav>
+</body></html>

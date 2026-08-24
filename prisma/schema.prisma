@@ -1,0 +1,478 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  SALES
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum InventoryStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  DISPATCHED
+  DELIVERED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  EXPIRED
+  RELEASED
+  SOLD
+}
+
+enum OrderStatus {
+  PENDING
+  PACKING
+  DISPATCHED
+  DELIVERED
+  RETURNED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum PaymentRequestStatus {
+  CREATED
+  SENT
+  PAID
+  PARTIALLY_PAID
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+enum WebhookProvider {
+  META_WHATSAPP
+  RAZORPAY
+  SHIPROCKET
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
+enum AutomationStatus {
+  PENDING
+  EXECUTED
+  FAILED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductCategory {
+  id                   String                @id @default(uuid())
+  name                 String                @unique
+  slug                 String                @unique
+  code                 String                @unique // e.g. "R" for Rida, "K" for Kids
+  description          String?
+  isActive             Boolean               @default(true)
+  attributeDefinitions AttributeDefinition[]
+  products             Product[]
+}
+
+model AttributeDefinition {
+  id           String                  @id @default(uuid())
+  categoryId   String
+  category     ProductCategory         @relation(fields: [categoryId], references: [id])
+  name         String
+  key          String // e.g. "embroidery_type", "fabric"
+  fieldType    String // TEXT, SELECT, NUMBER
+  required     Boolean                 @default(false)
+  options      String? // JSON array of strings for select fields
+  sortOrder    Int                     @default(0)
+  values       ProductAttributeValue[]
+}
+
+model ProductAttributeValue {
+  id           String              @id @default(uuid())
+  productId    String
+  product      Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  definitionId String
+  definition   AttributeDefinition @relation(fields: [definitionId], references: [id])
+  value        String // Stringified value
+}
+
+model Product {
+  id               String                  @id @default(uuid())
+  productCode      String                  @unique // JWR-[Category]-[Year]-[Serial] (e.g. JWR-R-26-0001)
+  name             String
+  slug             String                  @unique
+  categoryId       String
+  category         ProductCategory         @relation(fields: [categoryId], references: [id])
+  shortDesc        String?
+  description      String?
+  price            Decimal                 @db.Decimal(10, 2)
+  costPrice        Decimal?                @db.Decimal(10, 2)
+  currency         String                  @default("INR")
+  quantity         Int                     @default(1)
+  isUnique         Boolean                 @default(true)
+  publishStatus    PublishStatus           @default(DRAFT)
+  inventoryStatus  InventoryStatus         @default(AVAILABLE)
+  primaryColour    String?
+  secondaryColours String? // Comma-separated or JSON list
+  collectionId     String?
+  collection       Collection?             @relation(fields: [collectionId], references: [id])
+  images           ProductImage[]
+  attributes       ProductAttributeValue[]
+  reservations     Reservation[]
+  orderItems       OrderItem[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  soldAt           DateTime?
+  interactions     CustomerInteraction[]
+
+  @@index([inventoryStatus])
+  @@index([publishStatus])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  altText   String?
+  createdAt DateTime @default(now())
+}
+
+model Collection {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  coverImage  String?
+  status      String    @default("ACTIVE")
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Customer {
+  id                    String                 @id @default(uuid())
+  name                  String
+  mobile                String // Display/raw user input phone
+  normalizedMobile      String                 @unique // E.164 canonical unique index
+  email                 String?
+  city                  String?
+  notes                 String?
+  whatsappWaId          String?
+  whatsappProfileName   String?
+  whatsappOptIn         Boolean                @default(false)
+  whatsappOptInAt       DateTime?
+  whatsappOptInSource   String?
+  lastWhatsAppInboundAt DateTime?
+  source                String                 @default("MANUAL") // MANUAL, WHATSAPP, WEBSITE, SHOWROOM, INSTAGRAM, IMPORT
+  reservations          Reservation[]
+  orders                Order[]
+  conversations         WhatsAppConversation[]
+  interactions          CustomerInteraction[]
+  campaignRecipients    CampaignRecipient[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([normalizedMobile])
+}
+
+model Reservation {
+  id                 String            @id @default(uuid())
+  productId          String
+  product            Product           @relation(fields: [productId], references: [id])
+  customerId         String
+  customer           Customer          @relation(fields: [customerId], references: [id])
+  reservedBy         String // User name or email
+  status             ReservationStatus @default(ACTIVE)
+  notes              String?
+  quantity           Int               @default(1)
+  reservedAt         DateTime          @default(now())
+  expiresAt          DateTime?
+  releasedAt         DateTime?
+  convertedToOrderAt DateTime?
+
+  @@index([productId, status])
+  @@index([expiresAt])
+}
+
+model Order {
+  id            String               @id @default(uuid())
+  orderNumber   String               @unique // e.g. ORD-10001
+  customerId    String
+  customer      Customer             @relation(fields: [customerId], references: [id])
+  status        OrderStatus          @default(PENDING)
+  paymentStatus PaymentStatus        @default(UNPAID)
+  subtotal      Decimal              @db.Decimal(10, 2)
+  discount      Decimal              @default(0.0) @db.Decimal(10, 2)
+  total         Decimal              @db.Decimal(10, 2)
+  currency      String               @default("INR")
+  notes         String?
+  salespersonId String? // ID of User
+  orderItems    OrderItem[]
+  payments      PaymentRequest[]
+  transactions  PaymentTransaction[]
+  shipments     Shipment[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  finalPrice Decimal  @db.Decimal(10, 2)
+}
+
+model SequenceCounter {
+  key       String   @id // e.g. "ORDER", "PRODUCT:R:2026"
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppConversation {
+  id                     String                @id @default(uuid())
+  customerId             String
+  customer               Customer              @relation(fields: [customerId], references: [id])
+  waId                   String                @unique // E.164 mobile
+  status                 String                @default("OPEN") // OPEN, PENDING, CLOSED
+  assignedUserId         String?
+  lastMessageAt          DateTime              @default(now())
+  lastInboundAt          DateTime?
+  serviceWindowExpiresAt DateTime?
+  unreadCount            Int                   @default(0)
+  messages               WhatsAppMessage[]
+  interactions           CustomerInteraction[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@index([customerId])
+  @@index([lastMessageAt])
+}
+
+model WhatsAppMessage {
+  id                String               @id @default(uuid())
+  conversationId    String
+  conversation      WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  providerMessageId String?              @unique
+  direction         MessageDirection
+  type              String // TEXT, IMAGE, INTERACTIVE, TEMPLATE
+  status            MessageStatus        @default(QUEUED)
+  body              String?
+  mediaUrl          String?
+  templateName      String?
+  replyToMessageId  String?
+  rawPayload        Json?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  failureReason     String?
+  createdAt         DateTime             @default(now())
+}
+
+model PaymentRequest {
+  id                    String               @id @default(uuid())
+  orderId               String
+  order                 Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider              String               @default("RAZORPAY")
+  providerPaymentLinkId String?              @unique
+  shortUrl              String?
+  amount                Decimal              @db.Decimal(10, 2)
+  currency              String               @default("INR")
+  status                PaymentRequestStatus @default(CREATED)
+  expiresAt             DateTime?
+  paidAt                DateTime?
+  transactions          PaymentTransaction[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([providerPaymentLinkId])
+}
+
+model PaymentTransaction {
+  id                String          @id @default(uuid())
+  orderId           String
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentRequestId  String?
+  paymentRequest    PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
+  provider          String          @default("RAZORPAY")
+  providerPaymentId String          @unique
+  amount            Decimal         @db.Decimal(10, 2)
+  currency          String          @default("INR")
+  status            String
+  method            String?
+  rawPayload        Json?
+  createdAt         DateTime        @default(now())
+}
+
+model WebhookEvent {
+  id              String          @id @default(uuid())
+  provider        WebhookProvider
+  externalEventId String          @unique
+  eventType       String
+  payload         Json
+  status          WebhookStatus   @default(RECEIVED)
+  attempts        Int             @default(0)
+  receivedAt      DateTime        @default(now())
+  processedAt     DateTime?
+  error           String?
+}
+
+model AutomationRule {
+  id           String          @id @default(uuid())
+  name         String
+  eventType    String // CUSTOMER_MESSAGE_RECEIVED, PAYMENT_RECEIVED, etc.
+  enabled      Boolean         @default(true)
+  channel      String          @default("WHATSAPP")
+  templateKey  String?
+  delayMinutes Int             @default(0)
+  conditions   Json?
+  runs         AutomationRun[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model AutomationRun {
+  id               String           @id @default(uuid())
+  automationRuleId String
+  automationRule   AutomationRule   @relation(fields: [automationRuleId], references: [id], onDelete: Cascade)
+  eventKey         String           @unique
+  status           AutomationStatus @default(PENDING)
+  attemptCount     Int              @default(0)
+  lastError        String?
+  scheduledAt      DateTime
+  executedAt       DateTime?
+  createdAt        DateTime         @default(now())
+
+  @@index([status, scheduledAt])
+}
+
+model CustomerInteraction {
+  id             String                @id @default(uuid())
+  customerId     String
+  customer       Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product?              @relation(fields: [productId], references: [id])
+  conversationId String?
+  conversation   WhatsAppConversation? @relation(fields: [conversationId], references: [id])
+  type           String // PRODUCT_VIEW, WHATSAPP_INQUIRY, RESERVED, etc.
+  metadata       Json?
+  createdAt      DateTime              @default(now())
+}
+
+model Shipment {
+  id             String    @id @default(uuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider       String    @default("MANUAL")
+  awb            String?
+  trackingNumber String?
+  trackingUrl    String?
+  status         String    @default("PENDING") // PENDING, DISPATCHED, DELIVERED
+  dispatchedAt   DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model WhatsAppTemplate {
+  id               String   @id @default(uuid())
+  internalKey      String   @unique // e.g. ORDER_CONFIRMATION, PAYMENT_REQUEST
+  metaTemplateName String
+  languageCode     String   @default("en")
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  entityType String // PRODUCT, CUSTOMER, RESERVATION, ORDER
+  entityId   String
+  action     String // e.g. CREATED, RESERVED, SOLD, STATUS_CHANGED
+  userId     String? // Who performed the action
+  metadata   String? // JSON string
+  createdAt  DateTime @default(now())
+}
+
+model Campaign {
+  id           String              @id @default(uuid())
+  name         String
+  templateKey  String // e.g. MARKETING_PROMO
+  body         String // Fallback or template body
+  segmentRules String // JSON string storing filters (e.g. { ltvMin: 50000 })
+  status       String // CREATED, SENDING, COMPLETED, FAILED
+  sentCount    Int                 @default(0)
+  failedCount  Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  recipients   CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id         String   @id @default(uuid())
+  campaignId String
+  customerId String
+  status     String // QUEUED, SENT, DELIVERED, READ, FAILED
+  error      String?
+  sentAt     DateTime?
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([customerId])
+}
