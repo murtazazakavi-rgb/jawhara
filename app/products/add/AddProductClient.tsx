@@ -211,7 +211,7 @@ export default function AddProductClient({ categories, collections }: AddProduct
   ];
 
   return (
-    <div className="max-w-2xl mx-auto bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-8 shadow-sm relative overflow-hidden">
+    <div className="max-w-2xl mx-auto bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-4 sm:p-8 shadow-sm relative overflow-hidden">
       {/* Decorative Brand watermark background */}
       <span className="material-symbols-outlined absolute -top-10 -right-4 text-[120px] text-primary/5 pointer-events-none z-0" style={{ fontVariationSettings: "'FILL' 1" }}>
         local_florist

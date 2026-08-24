@@ -143,7 +143,7 @@ export default function AppShell({ children, user }: AppShellProps) {
       </main>
 
       {/* Mobile Bottom Navigation (Visible only on mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 flex justify-around py-3 z-40 shadow-lg">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 flex justify-around py-2.5 z-40 shadow-lg px-2">
         {navLinks.map((link) => {
           const isActive =
             link.href === '/'
@@ -153,25 +153,25 @@ export default function AppShell({ children, user }: AppShellProps) {
             <Link
               key={link.name}
               href={link.href}
-              className={`flex flex-col items-center gap-1 text-[10px] font-label-sm ${
-                isActive ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-label-sm min-w-0 flex-1 ${
+                isActive ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-primary'
               }`}
             >
-              <span className="material-symbols-outlined text-[22px]">
+              <span className="material-symbols-outlined text-[20px] transition-transform active:scale-95">
                 {link.icon}
               </span>
-              <span>{link.name}</span>
+              <span className="hidden min-[380px]:inline truncate max-w-[55px] text-center w-full">{link.name}</span>
             </Link>
           );
         })}
         <Link
           href="/settings"
-          className={`flex flex-col items-center gap-1 text-[10px] font-label-sm ${
-            pathname.startsWith('/settings') ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
+          className={`flex flex-col items-center gap-0.5 text-[9px] font-label-sm min-w-0 flex-1 ${
+            pathname.startsWith('/settings') ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-primary'
           }`}
         >
-          <span className="material-symbols-outlined text-[22px]">settings</span>
-          <span>Settings</span>
+          <span className="material-symbols-outlined text-[20px] transition-transform active:scale-95">settings</span>
+          <span className="hidden min-[380px]:inline truncate max-w-[55px] text-center w-full">Settings</span>
         </Link>
       </nav>
     </div>

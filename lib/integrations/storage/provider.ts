@@ -27,8 +27,12 @@ export async function uploadFile(file: File): Promise<string> {
     });
     return blob.url;
   } else {
-    // Local development fallback
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    // Local development fallback. If running in a serverless environment (like Vercel)
+    // without Blob configuration, fallback to writing to /tmp and serving dynamically.
+    const isVercel = !!process.env.VERCEL;
+    const uploadsDir = isVercel
+      ? path.join('/tmp', 'uploads')
+      : path.join(process.cwd(), 'public', 'uploads');
     
     // Ensure directory exists
     try {
@@ -40,6 +44,6 @@ export async function uploadFile(file: File): Promise<string> {
     const filePath = path.join(uploadsDir, filename);
     await fs.writeFile(filePath, buffer);
     
-    return `/uploads/${filename}`;
+    return isVercel ? `/api/public/uploads/${filename}` : `/uploads/${filename}`;
   }
 }
