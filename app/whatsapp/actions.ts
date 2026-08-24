@@ -218,7 +218,7 @@ export async function getCustomerContext(customerId: string) {
     take: 4,
   });
 
-  return {
+  return JSON.parse(JSON.stringify({
     customerName: customer.name,
     mobile: customer.mobile,
     normalizedMobile: customer.normalizedMobile,
@@ -232,7 +232,7 @@ export async function getCustomerContext(customerId: string) {
     priceRangePreference,
     recentlyViewed,
     recommended,
-  };
+  }));
 }
 
 /**

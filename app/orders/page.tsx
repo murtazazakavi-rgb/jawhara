@@ -55,9 +55,11 @@ export default async function OrdersPage() {
     totalRevenue,
   };
 
+  const serializedOrders = JSON.parse(JSON.stringify(orders));
+
   return (
     <AppShell user={user}>
-      <OrdersClient initialOrders={orders} metrics={metrics} />
+      <OrdersClient initialOrders={serializedOrders} metrics={metrics} />
     </AppShell>
   );
 }

@@ -160,7 +160,7 @@ export default function AppShell({ children, user }: AppShellProps) {
               <span className="material-symbols-outlined text-[20px] transition-transform active:scale-95">
                 {link.icon}
               </span>
-              <span className="hidden min-[380px]:inline truncate max-w-[55px] text-center w-full">{link.name}</span>
+              <span className="hidden sm:inline truncate max-w-[55px] text-center w-full">{link.name}</span>
             </Link>
           );
         })}
@@ -171,7 +171,7 @@ export default function AppShell({ children, user }: AppShellProps) {
           }`}
         >
           <span className="material-symbols-outlined text-[20px] transition-transform active:scale-95">settings</span>
-          <span className="hidden min-[380px]:inline truncate max-w-[55px] text-center w-full">Settings</span>
+          <span className="hidden sm:inline truncate max-w-[55px] text-center w-full">Settings</span>
         </Link>
       </nav>
     </div>
