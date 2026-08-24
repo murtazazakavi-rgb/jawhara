@@ -43,7 +43,7 @@ export async function suggestProductDetails(
 
   // Initialize new SDK client
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
   // Download the image buffer to send to Gemini
   let imageParts: any[] = [];
@@ -150,7 +150,7 @@ export async function generateSuggestedReplies(
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
   const prompt = `
     You are an elite boutique sales co-pilot for "Jawhara".
