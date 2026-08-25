@@ -386,7 +386,7 @@ export async function createPaymentRequestAction({
         orderNumber: order.orderNumber,
         amount: Number(order.total),
         customerName: order.customer.name,
-        customerMobile: order.customer.normalizedMobile || order.customer.mobile,
+        customerMobile: order.customer.normalizedMobile || order.customer.mobile || '',
         customerEmail: order.customer.email || undefined,
         expiresInMinutes: holdTimeMinutes,
       });
@@ -431,28 +431,31 @@ export async function createPaymentRequestAction({
 
     if (updatedRequest) {
       const customer = updatedRequest.order.customer;
-      const amountStr = Number(updatedRequest.amount).toLocaleString('en-IN');
-      const text = `Dear ${customer.name}, here is the payment link for your order ${updatedRequest.order.orderNumber} of amount ₹${amountStr}: ${updatedRequest.shortUrl}\nLink expires in ${expiresInMinutes} minutes.`;
+      const waId = customer.normalizedMobile;
+      if (waId) {
+        const amountStr = Number(updatedRequest.amount).toLocaleString('en-IN');
+        const text = `Dear ${customer.name}, here is the payment link for your order ${updatedRequest.order.orderNumber} of amount ₹${amountStr}: ${updatedRequest.shortUrl}\nLink expires in ${expiresInMinutes} minutes.`;
 
-      // Find or create conversation
-      let conversation = await prisma.whatsAppConversation.findUnique({
-        where: { waId: customer.normalizedMobile },
-      });
-
-      if (!conversation) {
-        conversation = await prisma.whatsAppConversation.create({
-          data: {
-            customerId: customer.id,
-            waId: customer.normalizedMobile,
-            status: 'OPEN',
-            lastMessageAt: new Date(),
-          },
+        // Find or create conversation
+        let conversation = await prisma.whatsAppConversation.findUnique({
+          where: { waId },
         });
-      }
 
-      const sendRes = await sendWhatsAppChatMessage(conversation.id, text);
-      if (sendRes.error) {
-        console.error('Failed to send payment link WhatsApp:', sendRes.error);
+        if (!conversation) {
+          conversation = await prisma.whatsAppConversation.create({
+            data: {
+              customerId: customer.id,
+              waId,
+              status: 'OPEN',
+              lastMessageAt: new Date(),
+            },
+          });
+        }
+
+        const sendRes = await sendWhatsAppChatMessage(conversation.id, text);
+        if (sendRes.error) {
+          console.error('Failed to send payment link WhatsApp:', sendRes.error);
+        }
       }
     }
 

@@ -106,7 +106,7 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                 />
                 <button
-                  className="absolute right-0 bottom-3 text-outline hover:text-on-surface transition-colors focus:outline-none"
+                  className="absolute right-2 bottom-2.5 text-outline hover:text-on-surface transition-colors focus:outline-none"
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -134,10 +134,21 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 pt-6 border-t border-outline-variant/20 flex flex-col items-center justify-center gap-4 z-10 w-full">
+          <div className="mt-4 pt-6 border-t border-outline-variant/20 flex flex-col items-center justify-center gap-2 z-10 w-full">
             <p className="font-body-sm text-[13px] text-on-surface-variant text-center">
               Authorized personnel only.
             </p>
+            <div className="text-center mt-3 pt-3 border-t border-outline-variant/10 w-full flex flex-col items-center">
+              <span className="font-body-sm text-[11px] text-on-surface-variant/80 mb-1">
+                Are you a boutique customer?
+              </span>
+              <a
+                href="/shop/login"
+                className="text-primary hover:underline text-xs font-label-md uppercase tracking-wider font-semibold cursor-pointer"
+              >
+                Go to Customer Portal & Sign Up
+              </a>
+            </div>
           </div>
         </section>
       </main>

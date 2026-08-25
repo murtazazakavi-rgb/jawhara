@@ -152,6 +152,7 @@ export async function POST(request: Request) {
         customer = await prisma.customer.create({
           data: {
             name: contactName,
+            email: `${normalizedMobile}@whatsapp.jawhara.com`,
             mobile: from,
             normalizedMobile,
             whatsappWaId: from,

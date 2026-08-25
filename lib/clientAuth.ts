@@ -6,16 +6,16 @@ const CLIENT_COOKIE_NAME = 'jawhara_customer_session';
 
 export interface CustomerSessionPayload {
   customerId: string;
-  mobile: string;
+  email: string;
   name: string;
   expires: string;
 }
 
-export async function setCustomerSession(customer: { id: string; mobile: string; name: string }) {
+export async function setCustomerSession(customer: { id: string; email: string; name: string }) {
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for customer convenience
   const payload: CustomerSessionPayload = {
     customerId: customer.id,
-    mobile: customer.mobile,
+    email: customer.email,
     name: customer.name,
     expires: expiresAt.toISOString(),
   };

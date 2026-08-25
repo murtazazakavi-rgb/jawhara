@@ -84,6 +84,7 @@ export default async function CustomerDashboardPage() {
       customerName={customer.name}
       activeHolds={activeHolds}
       orders={orders}
+      isDefaultPassword={customer.password === '123456'}
     />
   );
 }

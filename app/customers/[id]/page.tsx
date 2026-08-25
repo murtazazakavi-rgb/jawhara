@@ -117,6 +117,10 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
                       {customer.email}
                     </p>
                   )}
+                  <p className="flex items-center justify-center sm:justify-start gap-2 font-mono text-xs text-primary font-bold">
+                    <span className="material-symbols-outlined text-[18px]">key</span>
+                    Portal Password: {customer.password}
+                  </p>
                   {customer.city && (
                     <p className="flex items-center justify-center sm:justify-start gap-2">
                       <span className="material-symbols-outlined text-[18px]">location_on</span>

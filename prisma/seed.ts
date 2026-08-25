@@ -6,17 +6,40 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // 1. Create Default Admin User
+  // 1. Create Default Owner User
+  const ownerEmail = 'zakavi@gmail.com';
+  const ownerHashedPassword = await bcrypt.hash('jawhara123', 10);
+  
+  const ownerUser = await prisma.user.upsert({
+    where: { email: ownerEmail },
+    update: {
+      password: ownerHashedPassword,
+      rawPassword: 'jawhara123',
+    },
+    create: {
+      name: 'Murtaza Zakavi',
+      email: ownerEmail,
+      password: ownerHashedPassword,
+      rawPassword: 'jawhara123',
+      role: 'OWNER',
+    },
+  });
+  console.log(`Seeded owner user: ${ownerUser.email}`);
+
+  // 1b. Create Default Admin User
   const adminEmail = 'admin@maisonjawhara.com';
   const hashedPassword = await bcrypt.hash('JawharaOS2026!', 10);
   
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      rawPassword: 'JawharaOS2026!',
+    },
     create: {
       name: 'Boutique Admin',
       email: adminEmail,
       password: hashedPassword,
+      rawPassword: 'JawharaOS2026!',
       role: 'ADMIN',
     },
   });

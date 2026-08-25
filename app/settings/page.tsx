@@ -91,27 +91,40 @@ export default async function SettingsPage() {
     storage: storageHealth,
   };
 
+  // 5. Fetch staff users
+  const staffUsers = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      rawPassword: true,
+      createdAt: true,
+    },
+    orderBy: { email: 'asc' },
+  });
+
   return (
     <AppShell user={user}>
       {/* Header section */}
       <div className="mb-10 relative">
         <span
           className="material-symbols-outlined absolute -top-10 -right-4 text-[120px] text-primary/5 pointer-events-none z-[-1]"
-          style={{ fontVariationSettings: "'FILL' 1'" }}
+          style={{ fontVariationSettings: "'FILL' 1" }}
         >
-          local_florist
+          settings
         </span>
-        <h1 className="font-display font-medium text-display-lg text-primary mb-2">Settings</h1>
-        <p className="font-body-md text-on-surface-variant/80 text-sm max-w-xl">
-          Manage your boutique configuration, integration connections, and message template triggers.
-        </p>
+        <h1 className="font-display-lg text-on-surface mb-2">Boutique Configuration</h1>
+        <p className="font-body-lg text-on-surface-variant">Adjust your core configurations, categories, templates, and integrations health settings.</p>
       </div>
 
       <SettingsClient
-        initialTemplates={templates}
         initialSettings={settings}
-        healthStatus={healthStatus}
+        initialTemplates={templates}
         initialCategories={categories}
+        healthStatus={healthStatus}
+        staffUsers={staffUsers}
+        currentUserRole={user.role}
       />
     </AppShell>
   );

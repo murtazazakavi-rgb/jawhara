@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { cancelReservationAction } from '../actions';
+import { cancelReservationAction, changeClientPasswordAction } from '../actions';
 
 interface Reservation {
   id: string;
@@ -31,18 +31,67 @@ interface ShopDashboardClientProps {
   customerName: string;
   activeHolds: Reservation[];
   orders: Order[];
+  isDefaultPassword?: boolean;
 }
 
 export default function ShopDashboardClient({
   customerName,
   activeHolds,
   orders,
+  isDefaultPassword = false,
 }: ShopDashboardClientProps) {
   const router = useRouter();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // Expiration timers state
   const [timeRemaining, setTimeRemaining] = useState<Record<string, string>>({});
+
+  // Password change states
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setPasswordError('Password must be at least 4 characters long.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await changeClientPasswordAction({
+        oldPassword,
+        newPassword,
+      });
+
+      if (res.error) {
+        setPasswordError(res.error);
+      } else {
+        setPasswordSuccess('Password updated successfully!');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+      setPasswordError('An error occurred while changing your password.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   useEffect(() => {
     const updateTimers = () => {
@@ -115,7 +164,21 @@ export default function ShopDashboardClient({
       </header>
 
       {/* Main content */}
-      <main className="max-w-container-max w-full mx-auto px-4 sm:px-6 md:px-8 py-10 flex-grow relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-container-max w-full mx-auto px-4 sm:px-6 md:px-8 py-10 flex-grow relative z-10 space-y-6">
+        
+        {isDefaultPassword && (
+          <div className="bg-error/10 border border-error/20 text-error p-4 rounded-xl flex items-start gap-3 animate-pulse">
+            <span className="material-symbols-outlined shrink-0 text-lg">warning</span>
+            <div>
+              <h4 className="font-label-md text-xs uppercase tracking-wide font-bold">Default Password Security Alert</h4>
+              <p className="text-xs mt-1 leading-relaxed">
+                You are currently logged in with the default password <strong>123456</strong>. Please change it immediately in the form below to secure your customer session details.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Column: Active Holds */}
         <section className="lg:col-span-6 space-y-6">
@@ -254,7 +317,78 @@ export default function ShopDashboardClient({
             </div>
           )}
         </section>
-      </main>
+
+        {/* Change Password Card Section */}
+        <section className="lg:col-span-12 mt-6">
+          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 md:p-8 shadow-sm">
+            <h2 className="font-display text-xl text-primary font-light border-b border-outline-variant/20 pb-3 flex items-center gap-2 mb-6">
+              <span className="material-symbols-outlined">key</span>
+              Update Portal Password
+            </h2>
+
+            {passwordError && (
+              <div className="bg-error/10 border border-error/20 text-error text-xs p-3 rounded-lg mb-4">
+                {passwordError}
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="bg-success/15 border border-success/30 text-success text-xs p-3 rounded-lg mb-4">
+                {passwordSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-sm transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-sm transition-colors"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-sm transition-colors"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={changingPassword}
+                className="bg-primary text-white text-xs font-label-md uppercase tracking-wider px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 flex items-center gap-1.5 mt-4"
+              >
+                {changingPassword ? 'Updating...' : 'Update Password'}
+                <span className="material-symbols-outlined text-sm">lock_reset</span>
+              </button>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
 
       {/* Footer */}
       <footer className="w-full py-8 border-t border-outline-variant/20 bg-surface-container-lowest mt-16 text-center">

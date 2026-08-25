@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   saveSystemSetting, 
   saveWhatsAppTemplate, 
   createCategoryAction, 
-  toggleCategoryActiveAction 
+  toggleCategoryActiveAction,
+  createStaffUserAction,
+  deleteStaffUserAction
 } from './actions';
 
 interface Template {
@@ -30,6 +33,15 @@ interface Category {
   isActive: boolean;
 }
 
+interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'OWNER' | 'ADMIN' | 'SALES';
+  rawPassword?: string;
+  createdAt: Date;
+}
+
 interface SettingsClientProps {
   initialTemplates: Template[];
   initialSettings: Setting[];
@@ -40,15 +52,20 @@ interface SettingsClientProps {
     storage: { status: string; details: string };
   };
   initialCategories: Category[];
+  staffUsers?: StaffUser[];
+  currentUserRole?: string;
 }
 
 export default function SettingsClient({ 
   initialTemplates, 
   initialSettings, 
   healthStatus,
-  initialCategories
+  initialCategories,
+  staffUsers = [],
+  currentUserRole = 'ADMIN'
 }: SettingsClientProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'templates' | 'categories'>('profile');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'templates' | 'categories' | 'staff'>('profile');
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -59,6 +76,56 @@ export default function SettingsClient({
   const [catCode, setCatCode] = useState('');
   const [catDesc, setCatDesc] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  // Staff management states
+  const [staffName, setStaffName] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffRole, setStaffRole] = useState<'OWNER' | 'ADMIN' | 'SALES'>('SALES');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [isCreatingStaff, setIsCreatingStaff] = useState(false);
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffName.trim() || !staffEmail.trim() || !staffPassword.trim()) return;
+    setIsCreatingStaff(true);
+    try {
+      const res = await createStaffUserAction({
+        name: staffName,
+        email: staffEmail,
+        role: staffRole,
+        password: staffPassword,
+      });
+      if (res.error) {
+        alert(res.error);
+      } else {
+        alert('Staff user registered successfully!');
+        setStaffName('');
+        setStaffEmail('');
+        setStaffPassword('');
+        setStaffRole('SALES');
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreatingStaff(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete staff member: ${email}?`)) return;
+    try {
+      const res = await deleteStaffUserAction(id);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        alert('Staff member deleted.');
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleToggleCategory = async (id: string, currentActive: boolean) => {
     try {
@@ -247,6 +314,25 @@ export default function SettingsClient({
             chevron_right
           </span>
         </button>
+
+        {(currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
+          <button 
+            onClick={() => setActiveTab('staff')}
+            className={`w-full text-left p-4 rounded-lg border flex items-center justify-between group transition-colors ${
+              activeTab === 'staff' 
+                ? 'bg-surface-container-low border-outline-variant/50 text-primary' 
+                : 'bg-surface border-transparent text-on-surface-variant hover:bg-surface-container-low'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined">badge</span>
+              <span className="font-label-md text-sm">Staff Admins</span>
+            </div>
+            <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">
+              chevron_right
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Tab Contents Panel */}
@@ -618,6 +704,128 @@ export default function SettingsClient({
                 >
                   {isCreatingCategory ? 'Creating...' : 'Create Category'}
                   <span className="material-symbols-outlined text-sm">add</span>
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {/* TAB 5: STAFF ADMINS */}
+        {activeTab === 'staff' && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
+          <section className="space-y-8 animate-fade-in">
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 md:p-8 shadow-sm">
+              <h3 className="font-display font-medium text-headline-sm text-primary mb-6">Staff Accounts Management</h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-outline-variant/30">
+                      <th className="font-label-md text-xs text-outline uppercase py-3 pr-4">Name</th>
+                      <th className="font-label-md text-xs text-outline uppercase py-3 pr-4">Email Address</th>
+                      <th className="font-label-md text-xs text-outline uppercase py-3 pr-4 font-semibold">Role</th>
+                      <th className="font-label-md text-xs text-outline uppercase py-3 pr-4">Password</th>
+                      <th className="font-label-md text-xs text-outline uppercase py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffUsers.map((staff) => (
+                      <tr key={staff.id} className="border-b border-outline-variant/10 hover:bg-surface-container-low/10 transition-colors">
+                        <td className="font-body-md text-sm py-4 pr-4 font-semibold text-on-surface">{staff.name}</td>
+                        <td className="font-body-md text-sm py-4 pr-4 text-on-surface-variant">{staff.email}</td>
+                        <td className="font-body-md text-sm py-4 pr-4">
+                          <span className={`text-[10px] font-label-sm px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border ${
+                            staff.role === 'OWNER'
+                              ? 'bg-primary-container text-primary border-primary/20'
+                              : staff.role === 'ADMIN'
+                              ? 'bg-secondary-container text-secondary border-secondary/20'
+                              : 'bg-surface-container-high text-on-surface-variant border-outline-variant/20'
+                          }`}>
+                            {staff.role}
+                          </span>
+                        </td>
+                        <td className="font-mono text-xs py-4 pr-4 text-on-surface-variant font-bold">
+                          {currentUserRole === 'OWNER' ? staff.rawPassword : '••••••••'}
+                        </td>
+                        <td className="font-body-md text-sm py-4 text-right">
+                          <button
+                            onClick={() => handleDeleteStaff(staff.id, staff.email)}
+                            className="text-error hover:text-error/85 hover:underline text-xs font-label-md uppercase tracking-wider cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Create Staff Form */}
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 md:p-8 shadow-sm">
+              <h3 className="font-display font-medium text-headline-sm text-primary mb-6">Register Staff Member</h3>
+              
+              <form onSubmit={handleCreateStaff} className="max-w-lg space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md text-xs text-on-surface-variant uppercase">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="E.g. Ali Asghar"
+                      value={staffName}
+                      onChange={(e) => setStaffName(e.target.value)}
+                      className="bg-transparent border border-outline-variant/50 rounded-lg p-2 focus:border-primary outline-none font-body-md text-sm transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md text-xs text-on-surface-variant uppercase">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="E.g. ali@jawhara.com"
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      className="bg-transparent border border-outline-variant/50 rounded-lg p-2 focus:border-primary outline-none font-body-md text-sm transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md text-xs text-on-surface-variant uppercase">Role</label>
+                    <select
+                      value={staffRole}
+                      onChange={(e) => setStaffRole(e.target.value as any)}
+                      className="bg-transparent border border-outline-variant/50 rounded-lg p-2 focus:border-primary outline-none font-body-md text-sm transition-colors cursor-pointer"
+                    >
+                      <option value="SALES">Sales Staff</option>
+                      <option value="ADMIN">Admin Staff</option>
+                      <option value="OWNER">Owner Account</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md text-xs text-on-surface-variant uppercase">Login Password</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Password"
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      className="bg-transparent border border-outline-variant/50 rounded-lg p-2 focus:border-primary outline-none font-body-md text-sm transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isCreatingStaff}
+                  className="px-6 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-label-md text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isCreatingStaff ? 'Creating...' : 'Register User'}
+                  <span className="material-symbols-outlined text-sm">person_add</span>
                 </button>
               </form>
             </div>

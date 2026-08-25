@@ -30,6 +30,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         if (!order) return;
 
         const customer = order.customer;
+        if (!customer.normalizedMobile) return;
         const amountStr = Number(order.total).toLocaleString('en-IN');
         
         // Check if there is an approved template
@@ -105,7 +106,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
           where: { id: customerId },
         });
 
-        if (!product || !customer) return;
+        if (!product || !customer || !customer.normalizedMobile) return;
 
         // Auto respond with product details if enabled
         const autoRespondSetting = await prisma.systemSetting.findUnique({
@@ -152,6 +153,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         if (!order) return;
 
         const customer = order.customer;
+        if (!customer.normalizedMobile) return;
         const template = await prisma.whatsAppTemplate.findUnique({
           where: { internalKey: 'ORDER_DISPATCHED' },
         });

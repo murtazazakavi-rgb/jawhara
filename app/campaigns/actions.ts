@@ -128,6 +128,10 @@ export async function createCampaignBroadcast(data: {
         // Build customized personalized salutation
         const personalizedBody = data.body.replace(/\{\{name\}\}/gi, customer.name);
 
+        if (!customer.normalizedMobile) {
+          throw new Error('No WhatsApp mobile number registered.');
+        }
+
         const res = await sendWhatsAppMessage({
           to: customer.normalizedMobile,
           type: 'text',

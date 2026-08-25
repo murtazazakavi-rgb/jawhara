@@ -93,13 +93,14 @@ enum AutomationStatus {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      UserRole @default(ADMIN)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  rawPassword String   @default("JawharaOS2026!")
+  role        UserRole @default(ADMIN)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ProductCategory {
@@ -193,9 +194,10 @@ model Collection {
 model Customer {
   id                    String                 @id @default(uuid())
   name                  String
-  mobile                String // Display/raw user input phone
-  normalizedMobile      String                 @unique // E.164 canonical unique index
-  email                 String?
+  mobile                String? // Display/raw user input phone (now optional)
+  normalizedMobile      String?                @unique // E.164 canonical unique index (now optional)
+  email                 String                 @unique // Mandatory and unique for login
+  password              String                 @default("123456") // Cleartext password visible in CRM
   city                  String?
   notes                 String?
   whatsappWaId          String?

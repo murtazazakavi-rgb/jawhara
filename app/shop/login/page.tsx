@@ -1,70 +1,73 @@
 'use client';
 
 import React, { useState } from 'react';
-import { sendOtpAction, verifyOtpAction } from '../actions';
+import { clientLoginAction, clientRegisterAndLoginAction } from '../actions';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function ShopLoginPage() {
   const router = useRouter();
   
-  // States
-  const [mobile, setMobile] = useState('');
+  // Views: 'login' | 'register'
+  const [view, setView] = useState<'login' | 'register'>('login');
+
+  // Login states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  // Registration states
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
   const [city, setCity] = useState('');
-  const [code, setCode] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
-  const [step, setStep] = useState<1 | 2>(1);
-  const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const res = await sendOtpAction({
-        mobile,
-        firstName: isNewCustomer ? firstName : undefined,
-        lastName: isNewCustomer ? lastName : undefined,
-      });
-
+      const res = await clientLoginAction({ email, password });
       if (res.error) {
-        if (res.isNewCustomer) {
-          setIsNewCustomer(true);
-          setError('First time registering? Please provide your first and last name to proceed.');
-        } else {
-          setError(res.error);
-        }
+        setError(res.error);
       } else {
-        setSuccessMsg('OTP Code has been sent to your WhatsApp number!');
-        setStep(2);
+        router.push('/shop');
+        router.refresh();
       }
     } catch (err) {
       console.error(err);
-      setError('An unexpected error occurred. Please try again.');
+      setError('An unexpected login error occurred.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!firstName.trim() || !lastName.trim() || !mobile.trim()) {
+      setError('First Name, Last Name, and Mobile Number are required for registration.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await verifyOtpAction({
+      const res = await clientRegisterAndLoginAction({
+        email,
+        password,
+        firstName,
+        lastName,
         mobile,
-        code,
-        firstName: isNewCustomer ? firstName : undefined,
-        lastName: isNewCustomer ? lastName : undefined,
-        email: email.trim() || undefined,
         city: city.trim() || undefined,
       });
 
@@ -76,7 +79,7 @@ export default function ShopLoginPage() {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to verify OTP code.');
+      setError('Failed to create customer account.');
     } finally {
       setLoading(false);
     }
@@ -98,12 +101,12 @@ export default function ShopLoginPage() {
             Where Every Thing Pretty Lives
           </p>
           <h1 className="font-display text-lg text-on-surface mt-6 font-semibold">
-            {step === 1 ? 'Client Access Portal' : 'Enter Verification Code'}
+            {view === 'login' ? 'Client Access Portal' : 'Create Customer Profile'}
           </h1>
           <p className="font-body-sm text-xs text-on-surface-variant/80 mt-1">
-            {step === 1 
-              ? 'Provide your WhatsApp mobile number to enter the catalog lookup.' 
-              : `A 6-digit OTP code has been dispatched to ${mobile}`}
+            {view === 'login' 
+              ? 'Log in using your registered email and password.' 
+              : 'Complete your registration. Phone and name details are mandatory.'}
           </p>
         </div>
 
@@ -113,130 +116,169 @@ export default function ShopLoginPage() {
           </div>
         )}
 
-        {successMsg && !error && (
-          <div className="bg-success/15 border border-success/30 text-success text-xs p-3 rounded-lg mb-6">
-            {successMsg}
-          </div>
-        )}
-
-        {step === 1 ? (
-          <form onSubmit={handleSendOtp} className="space-y-5">
+        {view === 'login' ? (
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="flex flex-col gap-2">
               <label className="font-label-md text-xs text-on-surface-variant uppercase">
-                WhatsApp Mobile Number
+                Email Address
               </label>
               <input
-                type="tel"
+                type="email"
                 required
-                placeholder="e.g. +91 9876543210"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2.5 outline-none font-body-md text-body-md transition-colors"
+                placeholder="jane@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors"
               />
             </div>
 
-            {isNewCustomer && (
-              <div className="space-y-4 pt-2 border-t border-outline-variant/10 animate-fade-in">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-2">
-                    <label className="font-label-md text-xs text-on-surface-variant uppercase">First Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Jane"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md text-xs"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="font-label-md text-xs text-on-surface-variant uppercase">Last Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Doe"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="font-label-md text-xs text-on-surface-variant uppercase">Email (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="jane@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md text-xs"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="font-label-md text-xs text-on-surface-variant uppercase">City (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Mumbai"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md text-xs"
-                  />
-                </div>
-              </div>
-            )}
+            <div className="flex flex-col gap-2">
+              <label className="font-label-md text-xs text-on-surface-variant uppercase flex justify-between">
+                <span>Password</span>
+                <span className="text-[10px] lowercase text-outline normal-case tracking-normal">
+                  (Default: 123456)
+                </span>
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors"
+              />
+            </div>
 
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-primary text-white font-label-md text-sm py-3 rounded-xl hover:opacity-95 transition-opacity mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {loading ? 'Sending Request...' : 'Request OTP Code'}
-              <span className="material-symbols-outlined text-sm">chat</span>
+              {loading ? 'Signing in...' : 'Sign In'}
+              <span className="material-symbols-outlined text-sm">login</span>
             </button>
           </form>
         ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-6">
-            <div className="flex flex-col gap-2">
-              <label className="font-label-md text-xs text-on-surface-variant uppercase">
-                6-Digit Verification Code
-              </label>
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="font-label-md text-xs text-on-surface-variant uppercase">Email Address *</label>
+              <input
+                type="email"
+                required
+                placeholder="jane@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">First Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Jane"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Last Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-label-md text-xs text-on-surface-variant uppercase">Mobile Phone Number *</label>
+              <input
+                type="tel"
+                required
+                placeholder="Include country code, e.g. +919876543210"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-label-md text-xs text-on-surface-variant uppercase">City (Optional)</label>
               <input
                 type="text"
-                required
-                maxLength={6}
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2.5 outline-none font-mono text-center text-xl tracking-[0.5em] transition-colors"
+                placeholder="Mumbai"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Confirm Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+                />
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary text-white font-label-md text-sm py-3 rounded-xl hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full bg-primary text-white font-label-md text-sm py-3 rounded-xl hover:opacity-95 transition-opacity mt-4 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {loading ? 'Verifying...' : 'Verify & Continue'}
-              <span className="material-symbols-outlined text-sm">login</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setError('');
-                setStep(1);
-                setCode('');
-              }}
-              className="w-full border border-outline-variant text-on-surface-variant hover:bg-surface-container-low py-3 rounded-xl font-label-md text-sm cursor-pointer transition-colors"
-            >
-              Back to Number Entry
+              {loading ? 'Creating Profile...' : 'Complete Signup & Enter'}
+              <span className="material-symbols-outlined text-sm">person_add</span>
             </button>
           </form>
         )}
 
-        <div className="mt-8 text-center border-t border-outline-variant/10 pt-4">
-          <Link href="/shop" className="text-primary hover:underline text-xs font-label-md uppercase tracking-wider">
+        <div className="mt-8 text-center border-t border-outline-variant/10 pt-4 flex flex-col gap-2">
+          {view === 'login' ? (
+            <button
+              onClick={() => {
+                setError('');
+                setView('register');
+              }}
+              className="text-primary hover:underline text-xs font-label-md uppercase tracking-wider cursor-pointer"
+            >
+              New client? Register here
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setError('');
+                setView('login');
+              }}
+              className="text-primary hover:underline text-xs font-label-md uppercase tracking-wider cursor-pointer"
+            >
+              Already registered? Sign in
+            </button>
+          )}
+          <Link href="/shop" className="text-outline hover:underline text-[10px] font-label-md uppercase tracking-wider mt-2">
             Browse Catalog as Guest
           </Link>
         </div>

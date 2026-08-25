@@ -17,6 +17,7 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('123456');
   const [city, setCity] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
@@ -26,7 +27,14 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
     setFormError('');
 
     startTransition(async () => {
-      const res = await createCustomer({ name, mobile, email, city, notes });
+      const res = await createCustomer({ 
+        name, 
+        email, 
+        mobile: mobile.trim() || undefined, 
+        password, 
+        city, 
+        notes 
+      });
       if (res.error) {
         setFormError(res.error);
       } else {
@@ -34,6 +42,7 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
         setName('');
         setMobile('');
         setEmail('');
+        setPassword('123456');
         setCity('');
         setNotes('');
         window.location.reload();
@@ -210,10 +219,9 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
 
               {/* Mobile */}
               <div className="flex flex-col gap-1 mt-2">
-                <label className="font-label-md text-xs text-on-surface-variant uppercase">Mobile Phone Number *</label>
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Mobile Phone Number (Optional)</label>
                 <input
                   type="text"
-                  required
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
                   placeholder="E.g. 9876543210"
@@ -223,12 +231,26 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
 
               {/* Email */}
               <div className="flex flex-col gap-1 mt-2">
-                <label className="font-label-md text-xs text-on-surface-variant uppercase">Email Address (Optional)</label>
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Email Address *</label>
                 <input
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="eleanor@vance.com"
+                  className="w-full bg-transparent border-0 border-b border-outline-variant focus:border-primary focus:ring-0 py-2 font-body-md"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="flex flex-col gap-1 mt-2">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Portal Password *</label>
+                <input
+                  type="text"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="123456"
                   className="w-full bg-transparent border-0 border-b border-outline-variant focus:border-primary focus:ring-0 py-2 font-body-md"
                 />
               </div>

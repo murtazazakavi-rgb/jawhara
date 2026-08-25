@@ -8,17 +8,64 @@ import { revalidatePath } from 'next/cache';
 import { Prisma } from '@prisma/client';
 
 /**
- * Sends a 6-digit OTP code to the provided WhatsApp number.
- * If the customer is new, first and last name are required.
+ * Authenticates a client using email and password.
  */
-export async function sendOtpAction(data: {
-  mobile: string;
-  firstName?: string;
-  lastName?: string;
+export async function clientLoginAction(data: {
+  email: string;
+  password: string;
 }) {
-  if (!data.mobile.trim()) {
-    return { error: 'Mobile number is required.' };
+  if (!data.email.trim() || !data.password.trim()) {
+    return { error: 'Email and password are required.' };
   }
+
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { email: data.email.toLowerCase().trim() },
+    });
+
+    if (!customer || customer.isArchived) {
+      return { error: 'Invalid email or password.' };
+    }
+
+    if (customer.password !== data.password.trim()) {
+      return { error: 'Invalid email or password.' };
+    }
+
+    // Start Customer session cookie
+    await setCustomerSession({
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+    });
+
+    return { 
+      success: true, 
+      mustChangePassword: customer.password === '123456' 
+    };
+  } catch (error: any) {
+    console.error('clientLoginAction error:', error);
+    return { error: error.message || 'Login failed.' };
+  }
+}
+
+/**
+ * Registers a new client (demanding Name, Phone, and Password) and logs them in.
+ */
+export async function clientRegisterAndLoginAction(data: {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  mobile: string;
+  city?: string;
+}) {
+  if (!data.email.trim() || !data.firstName.trim() || !data.lastName.trim() || !data.mobile.trim()) {
+    return { error: 'First name, last name, email, and mobile number are all required for registration.' };
+  }
+
+  const emailLower = data.email.toLowerCase().trim();
+  const password = data.password?.trim() || '123456';
+  const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
 
   let normalized: string;
   try {
@@ -27,124 +74,84 @@ export async function sendOtpAction(data: {
     return { error: 'Invalid mobile number format. Please include country code (e.g. +91...)' };
   }
 
-  // Check if customer exists
-  const existingCustomer = await prisma.customer.findUnique({
-    where: { normalizedMobile: normalized },
-  });
-
-  if (!existingCustomer) {
-    if (!data.firstName?.trim() || !data.lastName?.trim()) {
-      return { 
-        error: 'Registration required', 
-        isNewCustomer: true 
-      };
-    }
-  }
-
-  // Generate 6-digit OTP
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
   try {
-    // Upsert OTP code
-    await prisma.otpCode.upsert({
-      where: { mobile: normalized },
-      update: { code, expiresAt },
-      create: { mobile: normalized, code, expiresAt },
+    // Unique check email
+    const emailExists = await prisma.customer.findUnique({
+      where: { email: emailLower },
     });
+    if (emailExists) {
+      return { error: 'A customer with this email address already exists.' };
+    }
 
-    // Send via WhatsApp
-    const bodyText = `Your Jawhara Boutique verification code is: ${code}. Valid for 10 minutes.`;
-    await sendWhatsAppMessage({
-      to: normalized,
-      type: 'text',
-      text: {
-        body: bodyText,
+    // Unique check mobile
+    const mobileExists = await prisma.customer.findUnique({
+      where: { normalizedMobile: normalized },
+    });
+    if (mobileExists) {
+      return { error: 'A customer with this mobile phone number already exists.' };
+    }
+
+    // Create Customer
+    const customer = await prisma.customer.create({
+      data: {
+        name: fullName,
+        email: emailLower,
+        mobile: data.mobile.trim(),
+        normalizedMobile: normalized,
+        password,
+        city: data.city?.trim() || null,
+        source: 'WEBSITE',
       },
     });
 
-    return { success: true, isNewCustomer: !existingCustomer };
-  } catch (error: any) {
-    console.error('sendOtpAction error:', error);
-    return { error: error.message || 'Failed to send OTP.' };
-  }
-}
-
-/**
- * Verifies OTP code, signs up new customers, and starts a cookie session.
- */
-export async function verifyOtpAction(data: {
-  mobile: string;
-  code: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  city?: string;
-}) {
-  if (!data.mobile.trim() || !data.code.trim()) {
-    return { error: 'Mobile number and verification code are required.' };
-  }
-
-  let normalized: string;
-  try {
-    normalized = normalizePhoneNumber(data.mobile);
-  } catch (err) {
-    return { error: 'Invalid mobile number.' };
-  }
-
-  try {
-    // Query OTP code
-    const otpRecord = await prisma.otpCode.findUnique({
-      where: { mobile: normalized },
-    });
-
-    if (!otpRecord || otpRecord.code !== data.code.trim()) {
-      return { error: 'Invalid verification code.' };
-    }
-
-    if (otpRecord.expiresAt < new Date()) {
-      return { error: 'Verification code has expired.' };
-    }
-
-    // Find or create customer
-    let customer = await prisma.customer.findUnique({
-      where: { normalizedMobile: normalized },
-    });
-
-    if (!customer) {
-      if (!data.firstName?.trim() || !data.lastName?.trim()) {
-        return { error: 'First name and last name are required for new registration.' };
-      }
-      
-      const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
-      customer = await prisma.customer.create({
-        data: {
-          name: fullName,
-          mobile: data.mobile.trim(),
-          normalizedMobile: normalized,
-          email: data.email?.trim() || null,
-          city: data.city?.trim() || null,
-          source: 'WEBSITE',
-        },
-      });
-    }
-
-    // Set Customer session
+    // Start Customer session cookie
     await setCustomerSession({
       id: customer.id,
-      mobile: customer.normalizedMobile,
+      email: customer.email,
       name: customer.name,
-    });
-
-    // Delete OTP record
-    await prisma.otpCode.delete({
-      where: { mobile: normalized },
     });
 
     return { success: true, customer };
   } catch (error: any) {
-    console.error('verifyOtpAction error:', error);
-    return { error: error.message || 'Failed to verify OTP.' };
+    console.error('clientRegisterAndLoginAction error:', error);
+    return { error: error.message || 'Registration failed.' };
+  }
+}
+
+/**
+ * Changes the logged-in client's password.
+ */
+export async function changeClientPasswordAction(data: {
+  oldPassword: string;
+  newPassword: string;
+}) {
+  const customer = await getCurrentCustomer();
+  if (!customer) {
+    return { error: 'Authentication required.' };
+  }
+
+  if (!data.oldPassword.trim() || !data.newPassword.trim()) {
+    return { error: 'Both old and new passwords are required.' };
+  }
+
+  if (data.newPassword.trim() === '123456') {
+    return { error: 'You cannot change your password back to the default password.' };
+  }
+
+  try {
+    if (customer.password !== data.oldPassword.trim()) {
+      return { error: 'Incorrect current password.' };
+    }
+
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: { password: data.newPassword.trim() },
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('changeClientPasswordAction error:', error);
+    return { error: error.message || 'Failed to change password.' };
   }
 }
 

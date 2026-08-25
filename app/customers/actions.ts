@@ -7,8 +7,9 @@ import { normalizePhoneNumber } from '@/lib/phone';
 
 export async function createCustomer(data: {
   name: string;
-  mobile: string;
-  email?: string;
+  email: string;
+  mobile?: string;
+  password?: string;
   city?: string;
   notes?: string;
 }) {
@@ -17,27 +18,39 @@ export async function createCustomer(data: {
     return { error: 'Unauthorized.' };
   }
 
-  if (!data.name.trim() || !data.mobile.trim()) {
-    return { error: 'Name and mobile number are required.' };
+  if (!data.name.trim() || !data.email.trim()) {
+    return { error: 'Name and email address are required.' };
   }
 
   try {
-    const normalized = normalizePhoneNumber(data.mobile);
-    const exists = await prisma.customer.findUnique({
-      where: { normalizedMobile: normalized },
+    const emailLower = data.email.toLowerCase().trim();
+    const emailExists = await prisma.customer.findUnique({
+      where: { email: emailLower },
     });
-    if (exists) {
-      return { error: 'A customer with this mobile number already exists.' };
+    if (emailExists) {
+      return { error: 'A customer with this email address already exists.' };
+    }
+
+    let normalized: string | null = null;
+    if (data.mobile?.trim()) {
+      normalized = normalizePhoneNumber(data.mobile);
+      const mobileExists = await prisma.customer.findUnique({
+        where: { normalizedMobile: normalized },
+      });
+      if (mobileExists) {
+        return { error: 'A customer with this mobile number already exists.' };
+      }
     }
 
     const customer = await prisma.customer.create({
       data: {
-        name: data.name,
-        mobile: data.mobile,
+        name: data.name.trim(),
+        email: emailLower,
+        mobile: data.mobile?.trim() || null,
         normalizedMobile: normalized,
-        email: data.email,
-        city: data.city,
-        notes: data.notes,
+        password: data.password?.trim() || '123456',
+        city: data.city?.trim() || null,
+        notes: data.notes?.trim() || null,
       },
     });
 

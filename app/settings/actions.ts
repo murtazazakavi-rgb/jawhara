@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import * as bcrypt from 'bcryptjs';
 
 /**
  * Saves a system setting key-value pair.
@@ -126,6 +127,106 @@ export async function toggleCategoryActiveAction(id: string, isActive: boolean) 
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to update category status.' };
+  }
+}
+
+/**
+ * Creates a new administrative staff member (User model).
+ */
+export async function createStaffUserAction(data: {
+  name: string;
+  email: string;
+  role: 'OWNER' | 'ADMIN' | 'SALES';
+  password: string;
+}) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  if (!data.name.trim() || !data.email.trim() || !data.password.trim()) {
+    return { error: 'Name, email, and password are required.' };
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email.toLowerCase().trim() },
+    });
+    if (existing) {
+      return { error: 'A staff member with this email already exists.' };
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const newStaff = await prisma.user.create({
+      data: {
+        name: data.name.trim(),
+        email: data.email.toLowerCase().trim(),
+        password: hashedPassword,
+        rawPassword: data.password,
+        role: data.role,
+      },
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'USER',
+        entityId: newStaff.id,
+        action: 'CREATED',
+        userId: user.id,
+        metadata: JSON.stringify({ email: newStaff.email, role: newStaff.role }),
+      },
+    });
+
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to create staff member.' };
+  }
+}
+
+/**
+ * Deletes an administrative staff member.
+ */
+export async function deleteStaffUserAction(targetId: string) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  if (user.id === targetId) {
+    return { error: 'You cannot delete your own administrative account.' };
+  }
+
+  try {
+    const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!targetUser) {
+      return { error: 'User not found.' };
+    }
+
+    if (targetUser.role === 'OWNER' && user.role !== 'OWNER') {
+      return { error: 'Only owners can delete other owner accounts.' };
+    }
+
+    await prisma.user.delete({
+      where: { id: targetId },
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'USER',
+        entityId: targetId,
+        action: 'DELETED',
+        userId: user.id,
+        metadata: JSON.stringify({ email: targetUser.email }),
+      },
+    });
+
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to delete staff member.' };
   }
 }
 

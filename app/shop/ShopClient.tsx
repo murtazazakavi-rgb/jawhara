@@ -24,7 +24,7 @@ interface Product {
 interface Customer {
   id: string;
   name: string;
-  mobile: string;
+  mobile: string | null;
 }
 
 interface ShopClientProps {
