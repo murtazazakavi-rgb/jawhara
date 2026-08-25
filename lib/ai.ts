@@ -78,41 +78,61 @@ export async function suggestProductDetails(
     6. Suggestions for category-specific attributes (pardi_style, embroidery_type, fabric, bed_size, material).
   `;
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: [prompt, ...imageParts],
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          name: { type: 'STRING' },
-          shortDesc: { type: 'STRING' },
-          description: { type: 'STRING' },
-          primaryColour: { type: 'STRING' },
-          secondaryColours: { type: 'STRING' },
-          attributes: {
+  const modelsToTry = [
+    process.env.GEMINI_MODEL,
+    'gemini-3.6-flash',
+    'gemini-1.5-flash'
+  ].filter((m): m is string => !!m);
+
+  // Remove duplicates while keeping order
+  const uniqueModels = Array.from(new Set(modelsToTry));
+
+  let lastError: any = null;
+  for (const model of uniqueModels) {
+    try {
+      console.log(`Generating product suggestions using model: ${model}`);
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: [prompt, ...imageParts],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
             type: 'OBJECT',
             properties: {
-              pardi_style: { type: 'STRING' },
-              embroidery_type: { type: 'STRING' },
-              fabric: { type: 'STRING' },
-              bed_size: { type: 'STRING' },
-              material: { type: 'STRING' },
+              name: { type: 'STRING' },
+              shortDesc: { type: 'STRING' },
+              description: { type: 'STRING' },
+              primaryColour: { type: 'STRING' },
+              secondaryColours: { type: 'STRING' },
+              attributes: {
+                type: 'OBJECT',
+                properties: {
+                  pardi_style: { type: 'STRING' },
+                  embroidery_type: { type: 'STRING' },
+                  fabric: { type: 'STRING' },
+                  bed_size: { type: 'STRING' },
+                  material: { type: 'STRING' },
+                },
+              },
             },
+            required: ['name', 'shortDesc', 'description', 'primaryColour', 'secondaryColours', 'attributes'],
           },
         },
-        required: ['name', 'shortDesc', 'description', 'primaryColour', 'secondaryColours', 'attributes'],
-      },
-    },
-  });
+      });
 
-  const responseText = response.text;
-  if (!responseText) {
-    throw new Error('Empty response received from Gemini.');
+      const responseText = response.text;
+      if (!responseText) {
+        throw new Error('Empty response received from Gemini.');
+      }
+
+      return JSON.parse(responseText.trim());
+    } catch (err: any) {
+      console.warn(`Gemini model ${model} failed:`, err.message || err);
+      lastError = err;
+    }
   }
 
-  return JSON.parse(responseText.trim());
+  throw lastError || new Error('All configured Gemini models failed.');
 }
 
 export interface AISuggestedReplies {
@@ -172,28 +192,47 @@ export async function generateSuggestedReplies(
     Style: Boutiquey, elegant, warm, using simple WhatsApp markdown (e.g. *bold*). Do not use placeholders like [Price] or [Link], use the actual values provided or generic friendly text.
   `;
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          option1: { type: 'STRING' },
-          option2: { type: 'STRING' },
-          option3: { type: 'STRING' },
-        },
-        required: ['option1', 'option2', 'option3'],
-      },
-    },
-  });
+  const modelsToTry = [
+    process.env.GEMINI_MODEL,
+    'gemini-3.6-flash',
+    'gemini-1.5-flash'
+  ].filter((m): m is string => !!m);
 
-  const responseText = response.text;
-  if (!responseText) {
-    throw new Error('Empty response received from Gemini for suggestions.');
+  const uniqueModels = Array.from(new Set(modelsToTry));
+
+  let lastError: any = null;
+  for (const model of uniqueModels) {
+    try {
+      console.log(`Generating reply suggestions using model: ${model}`);
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              option1: { type: 'STRING' },
+              option2: { type: 'STRING' },
+              option3: { type: 'STRING' },
+            },
+            required: ['option1', 'option2', 'option3'],
+          },
+        },
+      });
+
+      const responseText = response.text;
+      if (!responseText) {
+        throw new Error('Empty response received from Gemini for suggestions.');
+      }
+
+      return JSON.parse(responseText.trim());
+    } catch (err: any) {
+      console.warn(`Gemini model ${model} failed for suggestions:`, err.message || err);
+      lastError = err;
+    }
   }
 
-  return JSON.parse(responseText.trim());
+  throw lastError || new Error('All configured Gemini models failed for suggestions.');
 }
 
