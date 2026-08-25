@@ -5,7 +5,7 @@ import { sendWhatsAppMessage } from '@/lib/integrations/whatsapp/provider';
 import { normalizePhoneNumber } from '@/lib/phone';
 import { setCustomerSession, getCurrentCustomer } from '@/lib/clientAuth';
 import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
+import { Prisma, MessageDirection, MessageStatus } from '@prisma/client';
 
 /**
  * Authenticates a client using email and password.
@@ -315,5 +315,122 @@ export async function cancelReservationAction(reservationId: string) {
   } catch (error: any) {
     console.error('cancelReservationAction error:', error);
     return { error: error.message || 'Failed to release reservation.' };
+  }
+}
+
+/**
+ * Submits a client inquiry or message, placing it directly into the admin's Sales Center WhatsApp thread.
+ */
+export async function clientSendMessageAction(data: {
+  productId?: string;
+  body: string;
+}) {
+  const customer = await getCurrentCustomer();
+  if (!customer) {
+    return { error: 'Authentication required. Please log in first.' };
+  }
+
+  if (!data.body.trim()) {
+    return { error: 'Message cannot be empty.' };
+  }
+
+  try {
+    const waId = customer.email ? `email:${customer.email.toLowerCase().trim()}` : '';
+    if (!waId) {
+      return { error: 'Customer email not found.' };
+    }
+
+    // Resolve product prefix details if any
+    let prefix = '';
+    if (data.productId) {
+      const product = await prisma.product.findUnique({
+        where: { id: data.productId },
+      });
+      if (product) {
+        prefix = `[Inquiry: ${product.name} (${product.productCode})]\n`;
+      }
+    }
+
+    const fullMessageText = `${prefix}${data.body.trim()}`;
+
+    // Find or create conversation
+    let conversation = await prisma.whatsAppConversation.findUnique({
+      where: { waId },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.whatsAppConversation.create({
+        data: {
+          customerId: customer.id,
+          waId,
+          status: 'OPEN',
+          lastMessageAt: new Date(),
+        },
+      });
+    }
+
+    // Add inbound message
+    await prisma.whatsAppMessage.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: 'TEXT',
+        status: MessageStatus.READ,
+        body: fullMessageText,
+        sentAt: new Date(),
+      },
+    });
+
+    // Update conversation metadata
+    await prisma.whatsAppConversation.update({
+      where: { id: conversation.id },
+      data: {
+        lastMessageAt: new Date(),
+        unreadCount: { increment: 1 },
+      },
+    });
+
+    revalidatePath('/whatsapp');
+    revalidatePath('/shop/dashboard');
+    return { success: true };
+  } catch (error: any) {
+    console.error('clientSendMessageAction error:', error);
+    return { error: error.message || 'Failed to send message.' };
+  }
+}
+
+/**
+ * Retrieves the client's conversation messages from the database.
+ */
+export async function getClientMessagesAction() {
+  const customer = await getCurrentCustomer();
+  if (!customer) {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    const waId = customer.email ? `email:${customer.email.toLowerCase().trim()}` : '';
+    if (!waId) return { messages: [] };
+
+    const conversation = await prisma.whatsAppConversation.findUnique({
+      where: { waId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    return {
+      messages: conversation?.messages.map((m) => ({
+        id: m.id,
+        direction: m.direction,
+        body: m.body,
+        createdAt: m.createdAt.toISOString(),
+      })) || [],
+    };
+  } catch (error: any) {
+    console.error('getClientMessagesAction error:', error);
+    return { error: error.message || 'Failed to fetch messages.' };
   }
 }

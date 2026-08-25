@@ -79,12 +79,27 @@ export default async function CustomerDashboardPage() {
     };
   });
 
+  const chatMessages = customer.email ? await prisma.whatsAppConversation.findUnique({
+    where: { waId: `email:${customer.email.toLowerCase().trim()}` },
+    include: {
+      messages: {
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  }).then(conv => conv?.messages.map(m => ({
+    id: m.id,
+    direction: m.direction,
+    body: m.body,
+    createdAt: m.createdAt.toISOString(),
+  })) || []) : [];
+
   return (
     <ShopDashboardClient
       customerName={customer.name}
       activeHolds={activeHolds}
       orders={orders}
       isDefaultPassword={customer.password === '123456'}
+      chatMessages={chatMessages}
     />
   );
 }

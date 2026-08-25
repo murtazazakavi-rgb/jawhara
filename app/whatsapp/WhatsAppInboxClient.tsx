@@ -6,7 +6,8 @@ import {
   sendWhatsAppChatMessage, 
   getCustomerContext, 
   assignSalesperson,
-  getAISuggestedReplies
+  getAISuggestedReplies,
+  getConversations
 } from './actions';
 import { createPaymentRequestAction } from '../products/[id]/actions';
 import Link from 'next/link';
@@ -140,6 +141,83 @@ export default function WhatsAppInboxClient({
 
     return () => clearInterval(timer);
   }, [activeConvId]);
+
+  // Periodic poll for conversation updates and sound alerts
+  useEffect(() => {
+    const listTimer = setInterval(async () => {
+      try {
+        const freshList = (await getConversations()) as any[];
+        
+        // Map dates to strings
+        const mappedList = freshList.map((c: any) => ({
+          ...c,
+          lastMessageAt: c.lastMessageAt.toISOString(),
+        })) as any[];
+
+        // Check if we have new unread messages
+        let hasNewInbound = false;
+        mappedList.forEach(freshConv => {
+          const oldConv = conversations.find(c => c.id === freshConv.id);
+          
+          if (!oldConv) {
+            if (freshConv.unreadCount > 0) hasNewInbound = true;
+          } else if (freshConv.unreadCount > oldConv.unreadCount) {
+            hasNewInbound = true;
+          } else if (freshConv.lastMessageAt !== oldConv.lastMessageAt && freshConv.unreadCount > 0) {
+            hasNewInbound = true;
+          }
+        });
+
+        if (hasNewInbound) {
+          // Play synthesised audio chime note using Web Audio API
+          try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass) {
+              const audioCtx = new AudioContextClass();
+              
+              // Note 1 (D5)
+              const osc1 = audioCtx.createOscillator();
+              const gain1 = audioCtx.createGain();
+              osc1.connect(gain1);
+              gain1.connect(audioCtx.destination);
+              osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+              gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
+              gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+              osc1.start(audioCtx.currentTime);
+              osc1.stop(audioCtx.currentTime + 0.15);
+
+              // Note 2 (A5)
+              const osc2 = audioCtx.createOscillator();
+              const gain2 = audioCtx.createGain();
+              osc2.connect(gain2);
+              gain2.connect(audioCtx.destination);
+              osc2.frequency.setValueAtTime(880.00, audioCtx.currentTime + 0.12);
+              gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.12);
+              gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+              osc2.start(audioCtx.currentTime + 0.12);
+              osc2.stop(audioCtx.currentTime + 0.35);
+            }
+          } catch (err) {
+            console.error('Audio chime failed:', err);
+          }
+        }
+
+        // Update local list, keeping unread count cleared for current active chat
+        setConversations(prev => {
+          return mappedList.map(freshConv => {
+            if (freshConv.id === activeConvId) {
+              return { ...freshConv, unreadCount: 0 };
+            }
+            return freshConv;
+          });
+        });
+      } catch (err) {
+        console.error('Error polling conversation list:', err);
+      }
+    }, 8000);
+
+    return () => clearInterval(listTimer);
+  }, [conversations, activeConvId]);
 
   // Handle AI suggestions loading
   const loadAiSuggestions = async () => {

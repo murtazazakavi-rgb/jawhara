@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { cancelReservationAction, changeClientPasswordAction } from '../actions';
+import { 
+  cancelReservationAction, 
+  changeClientPasswordAction,
+  clientSendMessageAction,
+  getClientMessagesAction
+} from '../actions';
 
 interface Reservation {
   id: string;
@@ -27,11 +32,19 @@ interface Order {
   paymentRequestUrl: string | null;
 }
 
+interface ChatMessage {
+  id: string;
+  direction: 'INBOUND' | 'OUTBOUND';
+  body: string | null;
+  createdAt: string;
+}
+
 interface ShopDashboardClientProps {
   customerName: string;
   activeHolds: Reservation[];
   orders: Order[];
   isDefaultPassword?: boolean;
+  chatMessages?: ChatMessage[];
 }
 
 export default function ShopDashboardClient({
@@ -39,9 +52,65 @@ export default function ShopDashboardClient({
   activeHolds,
   orders,
   isDefaultPassword = false,
+  chatMessages = [],
 }: ShopDashboardClientProps) {
   const router = useRouter();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Chat messaging states
+  const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
+  const [newMsg, setNewMsg] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMsg.trim() || sendingMsg) return;
+
+    const currentMsgText = newMsg.trim();
+    setNewMsg('');
+    setSendingMsg(true);
+
+    try {
+      const res = await clientSendMessageAction({ body: currentMsgText });
+      if (res.error) {
+        alert(res.error);
+      } else {
+        const tempMsg: ChatMessage = {
+          id: Math.random().toString(),
+          direction: 'INBOUND',
+          body: currentMsgText,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, tempMsg]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSendingMsg(false);
+    }
+  };
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Periodic poll for staff replies
+  useEffect(() => {
+    const pollTimer = setInterval(async () => {
+      try {
+        const res = await getClientMessagesAction();
+        if (res.messages) {
+          setMessages(res.messages as any);
+        }
+      } catch (err) {
+        console.error('Error polling client messages:', err);
+      }
+    }, 8000);
+
+    return () => clearInterval(pollTimer);
+  }, []);
 
   // Expiration timers state
   const [timeRemaining, setTimeRemaining] = useState<Record<string, string>>({});
@@ -316,6 +385,71 @@ export default function ShopDashboardClient({
               ))}
             </div>
           )}
+        </section>
+
+        {/* Direct Inquiries / Chat section */}
+        <section className="lg:col-span-12 mt-6">
+          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 md:p-8 shadow-sm flex flex-col h-[500px]">
+            <h2 className="font-display text-xl text-primary font-light border-b border-outline-variant/20 pb-3 flex items-center gap-2 mb-4">
+              <span className="material-symbols-outlined">forum</span>
+              Direct Inquiries & Chat
+            </h2>
+
+            {/* Messages Feed */}
+            <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-surface-container-low/20 rounded-xl border border-outline-variant/10 min-h-[250px]">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-2">
+                  <span className="material-symbols-outlined text-outline/40 text-4xl">chat_bubble</span>
+                  <p className="font-body-md text-sm text-on-surface-variant italic">No messages yet. Send a query below to start a chat with our boutique staff.</p>
+                </div>
+              ) : (
+                messages.map((m) => {
+                  const isCustomer = m.direction === 'INBOUND';
+                  return (
+                    <div 
+                      key={m.id}
+                      className={`flex w-full ${isCustomer ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                        isCustomer 
+                          ? 'bg-primary text-white rounded-tr-none' 
+                          : 'bg-surface-container-high text-on-surface rounded-tl-none border border-outline-variant/10'
+                      }`}>
+                        {m.body}
+                        <span className={`block text-[9px] mt-1 text-right ${
+                          isCustomer ? 'text-white/60' : 'text-outline'
+                        }`}>
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Form */}
+            <form onSubmit={handleSendMessage} className="mt-4 flex gap-2 pt-2 border-t border-outline-variant/10">
+              <input
+                type="text"
+                required
+                disabled={sendingMsg}
+                placeholder="Type your message to the boutique..."
+                value={newMsg}
+                onChange={(e) => setNewMsg(e.target.value)}
+                className="flex-grow bg-transparent border border-outline-variant/50 focus:border-primary rounded-xl px-4 py-2.5 outline-none font-body-md text-sm transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={sendingMsg || !newMsg.trim()}
+                className="bg-primary text-white px-5 py-2.5 rounded-xl hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center justify-center gap-1.5 font-label-md text-xs uppercase tracking-wider cursor-pointer"
+              >
+                {sendingMsg ? 'Sending...' : 'Send'}
+                <span className="material-symbols-outlined text-sm">send</span>
+              </button>
+            </form>
+          </div>
         </section>
 
         {/* Change Password Card Section */}

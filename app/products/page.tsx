@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import AppShell from '@/components/AppShell';
 import { prisma } from '@/lib/prisma';
+import ReservedProductsList from './ReservedProductsList';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,15 +67,26 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   }
 
   // 3. Fetch products, categories, collections
+  const includeQuery: any = {
+    category: true,
+    images: {
+      where: { isPrimary: true },
+      take: 1,
+    },
+  };
+
+  if (status === 'RESERVED') {
+    includeQuery.reservations = {
+      where: { status: 'ACTIVE' },
+      include: { customer: true },
+      orderBy: { reservedAt: 'desc' },
+      take: 1,
+    };
+  }
+
   const products = await prisma.product.findMany({
     where,
-    include: {
-      category: true,
-      images: {
-        where: { isPrimary: true },
-        take: 1,
-      },
-    },
+    include: includeQuery,
     orderBy,
   });
 
@@ -196,7 +208,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </div>
       </section>
 
-      {/* Products Grid */}
+      {/* Products Grid or Reservations List */}
       {products.length === 0 ? (
         <div className="bg-surface-container-lowest text-center rounded-xl p-16 border border-outline-variant/30">
           <span className="material-symbols-outlined text-outline/30 text-6xl mb-4">folder_open</span>
@@ -211,9 +223,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             <span className="material-symbols-outlined">add</span> Add Product
           </Link>
         </div>
+      ) : status === 'RESERVED' ? (
+        <ReservedProductsList products={products as any} />
       ) : (
         <section className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
-          {products.map((product) => {
+          {(products as any[]).map((product) => {
             const mainImg = product.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300';
             
             // Status color helper

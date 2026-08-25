@@ -1,0 +1,22 @@
+{
+  "name": "Maison Jawhara Boutique OS",
+  "short_name": "Jawhara OS",
+  "description": "Where Every Thing Pretty Lives - Catalogue and Sales Operations",
+  "start_url": "/shop",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDF7F8",
+  "theme_color": "#755566",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuAhdq0dXJri4MFH3Wt2uKtyWtspVpIQ2z53D8Cnn7X8tVfQ8ugNxIuYzv1c6X9KzAhUpV7v9p96gA8TwFVDizB-9vje9yNRpNlZUapWuVHEOel4fDqwRLP6htVraQFPYPnckeGH_TXyuemSckNEh1Xq65Yn1RVGy93diDX4ADxCXVA6WHQmlTmGqFbxWNncM516g-TiJEG9EqtHdu8yLbWp2rM8vd5r0lmcUR-L4-rbqANsG-kGcQJ6lxDkjE5RBpbzP5U",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuAhdq0dXJri4MFH3Wt2uKtyWtspVpIQ2z53D8Cnn7X8tVfQ8ugNxIuYzv1c6X9KzAhUpV7v9p96gA8TwFVDizB-9vje9yNRpNlZUapWuVHEOel4fDqwRLP6htVraQFPYPnckeGH_TXyuemSckNEh1Xq65Yn1RVGy93diDX4ADxCXVA6WHQmlTmGqFbxWNncM516g-TiJEG9EqtHdu8yLbWp2rM8vd5r0lmcUR-L4-rbqANsG-kGcQJ6lxDkjE5RBpbzP5U",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

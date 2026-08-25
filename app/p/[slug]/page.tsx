@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { getCurrentCustomer } from '@/lib/clientAuth';
+import ProductInquiryForm from './ProductInquiryForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +63,7 @@ export async function generateMetadata({
 
 export default async function PublicProductPage({ params }: PublicProductPageProps) {
   const { slug } = await params;
+  const customer = await getCurrentCustomer();
 
   // 1. Fetch the product using slug
   const product = await prisma.product.findUnique({
@@ -230,6 +233,8 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
               </a>
             )}
           </div>
+
+          <ProductInquiryForm productId={product.id} isLoggedIn={!!customer} />
 
           {/* Similar pieces */}
           {similarProducts.length > 0 && (
