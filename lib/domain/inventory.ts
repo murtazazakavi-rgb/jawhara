@@ -41,6 +41,38 @@ export async function generateProductSKU(
   const key = `PRODUCT:${catCode}:20${yearLastTwo}`;
   const prefix = `JWR-${catCode}-${yearLastTwo}-`;
 
+  // Concurrency-safe self-healing initializer
+  const existingCounter = await tx.sequenceCounter.findUnique({
+    where: { key },
+  });
+
+  if (!existingCounter) {
+    const latestProduct = await tx.product.findFirst({
+      where: {
+        productCode: {
+          startsWith: prefix,
+        },
+      },
+      orderBy: { productCode: 'desc' },
+      select: { productCode: true },
+    });
+
+    let startVal = 0;
+    if (latestProduct) {
+      const parts = latestProduct.productCode.split('-');
+      const lastPart = parts[parts.length - 1];
+      if (lastPart) {
+        startVal = Math.max(startVal, parseInt(lastPart, 10));
+      }
+    }
+
+    await tx.sequenceCounter.upsert({
+      where: { key },
+      update: {},
+      create: { key, value: startVal },
+    });
+  }
+
   return generateSequentialCode(tx, key, prefix, 4, 0);
 }
 
@@ -51,5 +83,30 @@ export async function generateProductSKU(
 export async function generateOrderNumber(
   tx: Prisma.TransactionClient
 ): Promise<string> {
+  const existingCounter = await tx.sequenceCounter.findUnique({
+    where: { key: 'ORDER' },
+  });
+
+  if (!existingCounter) {
+    const latestOrder = await tx.order.findFirst({
+      orderBy: { orderNumber: 'desc' },
+      select: { orderNumber: true },
+    });
+
+    let startVal = 10000;
+    if (latestOrder) {
+      const match = latestOrder.orderNumber.match(/\d+/);
+      if (match) {
+        startVal = Math.max(startVal, parseInt(match[0], 10));
+      }
+    }
+
+    await tx.sequenceCounter.upsert({
+      where: { key: 'ORDER' },
+      update: {},
+      create: { key: 'ORDER', value: startVal },
+    });
+  }
+
   return generateSequentialCode(tx, 'ORDER', 'ORD-', 5, 10000);
 }
