@@ -2,6 +2,7 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,53 @@ interface PublicProductPageProps {
   params: Promise<{
     slug: string;
   }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PublicProductPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await prisma.product.findUnique({
+    where: { slug, publishStatus: 'PUBLISHED' },
+    include: {
+      images: {
+        where: { isPrimary: true },
+        take: 1,
+      },
+    },
+  });
+
+  if (!product) {
+    return {
+      title: 'Product Not Found - Jawhara',
+    };
+  }
+
+  const imageUrl = product.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600';
+
+  return {
+    title: `${product.name} - Jawhara`,
+    description: product.shortDesc || `Explore ${product.name} at Maison Jawhara.`,
+    openGraph: {
+      title: `${product.name} - Jawhara`,
+      description: product.shortDesc || `Explore ${product.name} at Maison Jawhara.`,
+      images: [
+        {
+          url: imageUrl,
+          width: 800,
+          height: 600,
+          alt: product.name,
+        },
+      ],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${product.name} - Jawhara`,
+      description: product.shortDesc || `Explore ${product.name} at Maison Jawhara.`,
+      images: [imageUrl],
+    },
+  };
 }
 
 export default async function PublicProductPage({ params }: PublicProductPageProps) {
