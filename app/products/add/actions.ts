@@ -105,7 +105,7 @@ export async function createProduct(data: {
     });
 
     revalidatePath('/products');
-    return { success: true, productId: result.id };
+    return { success: true, productId: result.id, slug: result.slug };
   } catch (e: any) {
     console.error('Failed to create product:', e);
     return { error: e.message || 'Failed to create product in database.' };

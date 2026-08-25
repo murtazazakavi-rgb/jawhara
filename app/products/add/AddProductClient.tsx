@@ -189,6 +189,7 @@ export default function AddProductClient({ categories, collections }: AddProduct
       } else {
         setSuccessProduct({
           id: res.productId,
+          slug: res.slug,
           name,
           price: parsedPrice,
           images,
