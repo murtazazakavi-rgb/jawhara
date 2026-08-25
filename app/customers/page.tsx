@@ -15,6 +15,9 @@ export default async function CustomersPage() {
 
   // Fetch all customers, including their paid orders to calculate total spend
   const rawCustomers = await prisma.customer.findMany({
+    where: {
+      isArchived: false,
+    },
     include: {
       orders: {
         where: {

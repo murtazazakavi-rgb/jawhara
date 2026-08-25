@@ -26,6 +26,7 @@ export function proxy(request: NextRequest) {
   // Let public routes go through
   const isPublicPath =
     path === '/login' ||
+    path.startsWith('/shop') ||
     path.startsWith('/p/') ||
     path.startsWith('/api/public/') ||
     path.startsWith('/api/webhooks/') || // webhook routes must be public

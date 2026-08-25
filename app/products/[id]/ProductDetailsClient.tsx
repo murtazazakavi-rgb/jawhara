@@ -2,7 +2,13 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createReservation, releaseReservation, markProductSold } from './actions';
+import { 
+  createReservation, 
+  releaseReservation, 
+  markProductSold,
+  toggleProductPublishStatusAction,
+  deleteProductAction
+} from './actions';
 
 interface ProductDetailsClientProps {
   product: any;
@@ -19,6 +25,44 @@ export default function ProductDetailsClient({
 }: ProductDetailsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [deleting, setDeleting] = useState(false);
+
+  const handleTogglePublish = async () => {
+    const nextStatus = product.publishStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
+    try {
+      const res = await toggleProductPublishStatusAction(product.id, nextStatus);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!confirm('Are you sure you want to delete this product? It will be archived (unpublished) if it has order history, or deleted permanently if not.')) {
+      return;
+    }
+    
+    setDeleting(true);
+    try {
+      const res = await deleteProductAction(product.id);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        alert(res.archived ? 'Product has order history and has been archived (unpublished) successfully.' : 'Product deleted permanently.');
+        router.push('/products');
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete product.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Modals state
   const [isReserveOpen, setIsReserveOpen] = useState(false);
@@ -173,6 +217,36 @@ export default function ProductDetailsClient({
 
       {/* Right Column: Details Section */}
       <section className="md:col-span-7 flex flex-col pt-4 md:pt-0 md:pl-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-outline-variant/20">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-label-md text-outline uppercase tracking-wider">Catalog Visibility:</span>
+            <span className={`text-[10px] font-label-sm px-2.5 py-0.5 rounded-full uppercase tracking-wider border font-bold ${
+              product.publishStatus === 'PUBLISHED'
+                ? 'bg-success/15 text-success border-success/30'
+                : product.publishStatus === 'DRAFT'
+                ? 'bg-primary/15 text-primary border-primary/30'
+                : 'bg-outline-variant/15 text-on-surface-variant border-outline-variant/30'
+            }`}>
+              {product.publishStatus}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTogglePublish}
+              className="text-[11px] px-3 py-1.5 border border-outline-variant hover:bg-surface-container-low transition-colors rounded font-label-md uppercase tracking-wider cursor-pointer"
+            >
+              {product.publishStatus === 'PUBLISHED' ? 'Set to Draft' : 'Publish'}
+            </button>
+            <button
+              onClick={handleDeleteProduct}
+              disabled={deleting}
+              className="text-[11px] px-3 py-1.5 border border-error text-error hover:bg-error/5 transition-colors rounded font-label-md uppercase tracking-wider cursor-pointer disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+
         <div className="mb-8">
           <p className="font-label-sm text-secondary uppercase tracking-widest mb-2">
             {product.collection?.name || 'Standard Collection'}

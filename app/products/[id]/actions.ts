@@ -462,3 +462,117 @@ export async function createPaymentRequestAction({
     return { error: error.message || 'Failed to request payment.' };
   }
 }
+
+/**
+ * Toggles a product's publish status (e.g. between DRAFT, PUBLISHED, ARCHIVED).
+ */
+export async function toggleProductPublishStatusAction(
+  productId: string,
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    await prisma.product.update({
+      where: { id: productId },
+      data: { publishStatus: status },
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'PRODUCT',
+        entityId: productId,
+        action: 'UPDATED',
+        userId: user.id,
+        metadata: JSON.stringify({ publishStatus: status }),
+      },
+    });
+
+    revalidatePath(`/products/${productId}`);
+    revalidatePath('/products');
+    revalidatePath('/shop');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to update publish status.' };
+  }
+}
+
+/**
+ * Cleanly deletes a product, checking for order history first.
+ */
+export async function deleteProductAction(productId: string) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    // Check if the product is linked to any order history (financial records)
+    const orderItemCount = await prisma.orderItem.count({
+      where: { productId },
+    });
+
+    if (orderItemCount > 0) {
+      // Cannot hard delete. Must archive instead.
+      await prisma.product.update({
+        where: { id: productId },
+        data: { publishStatus: 'ARCHIVED' },
+      });
+
+      // Log Activity
+      await prisma.activityLog.create({
+        data: {
+          entityType: 'PRODUCT',
+          entityId: productId,
+          action: 'ARCHIVED',
+          userId: user.id,
+          metadata: JSON.stringify({ reason: 'Has order items' }),
+        },
+      });
+
+      revalidatePath(`/products/${productId}`);
+      revalidatePath('/products');
+      revalidatePath('/shop');
+      return { success: true, archived: true };
+    }
+
+    // Clean delete cascading associations
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete product images
+      await tx.productImage.deleteMany({ where: { productId } });
+
+      // 2. Delete customer interactions
+      await tx.customerInteraction.deleteMany({ where: { productId } });
+
+      // 3. Delete reservations
+      await tx.reservation.deleteMany({ where: { productId } });
+
+      // 4. Delete product attributes values
+      await tx.productAttributeValue.deleteMany({ where: { productId } });
+
+      // 5. Finally, delete the product itself
+      await tx.product.delete({ where: { id: productId } });
+    });
+
+    // Log Activity
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'PRODUCT',
+        entityId: productId,
+        action: 'DELETED',
+        userId: user.id,
+        metadata: JSON.stringify({ hardDeleted: true }),
+      },
+    });
+
+    revalidatePath('/products');
+    revalidatePath('/shop');
+    return { success: true, hardDeleted: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to delete product.' };
+  }
+}

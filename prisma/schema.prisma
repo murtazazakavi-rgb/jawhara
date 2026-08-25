@@ -210,6 +210,7 @@ model Customer {
   conversations         WhatsAppConversation[]
   interactions          CustomerInteraction[]
   campaignRecipients    CampaignRecipient[]
+  isArchived            Boolean                @default(false)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
@@ -475,4 +476,12 @@ model CampaignRecipient {
 
   @@index([campaignId])
   @@index([customerId])
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  mobile    String   @unique
+  code      String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 }

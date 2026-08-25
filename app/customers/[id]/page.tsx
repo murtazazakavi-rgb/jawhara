@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import AppShell from '@/components/AppShell';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import DeleteCustomerButton from './DeleteCustomerButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,25 +102,32 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
           <div className="w-24 h-24 rounded-full bg-secondary-container text-primary flex items-center justify-center font-display text-3xl font-bold shadow-inner shrink-0">
             {initials}
           </div>
-          <div className="flex-grow">
-            <h2 className="font-headline-md text-2xl text-on-surface mb-2">{customer.name}</h2>
-            <div className="flex flex-col gap-1.5 text-on-surface-variant text-sm font-body-md">
-              <p className="flex items-center justify-center sm:justify-start gap-2">
-                <span className="material-symbols-outlined text-[18px]">phone</span>
-                {customer.mobile}
-              </p>
-              {customer.email && (
-                <p className="flex items-center justify-center sm:justify-start gap-2">
-                  <span className="material-symbols-outlined text-[18px]">mail</span>
-                  {customer.email}
-                </p>
-              )}
-              {customer.city && (
-                <p className="flex items-center justify-center sm:justify-start gap-2">
-                  <span className="material-symbols-outlined text-[18px]">location_on</span>
-                  {customer.city}
-                </p>
-              )}
+          <div className="flex-grow w-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="font-headline-md text-2xl text-on-surface mb-2">{customer.name}</h2>
+                <div className="flex flex-col gap-1.5 text-on-surface-variant text-sm font-body-md">
+                  <p className="flex items-center justify-center sm:justify-start gap-2">
+                    <span className="material-symbols-outlined text-[18px]">phone</span>
+                    {customer.mobile}
+                  </p>
+                  {customer.email && (
+                    <p className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="material-symbols-outlined text-[18px]">mail</span>
+                      {customer.email}
+                    </p>
+                  )}
+                  {customer.city && (
+                    <p className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="material-symbols-outlined text-[18px]">location_on</span>
+                      {customer.city}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="shrink-0 mt-2 sm:mt-0">
+                <DeleteCustomerButton id={customer.id} />
+              </div>
             </div>
           </div>
         </div>
