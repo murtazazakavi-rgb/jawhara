@@ -514,6 +514,14 @@ export async function deleteProductAction(productId: string) {
   }
 
   try {
+    // Check if the product exists
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+    if (!product) {
+      return { success: true, archived: false };
+    }
+
     // Check if the product is linked to any order history (financial records)
     const orderItemCount = await prisma.orderItem.count({
       where: { productId },

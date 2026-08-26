@@ -4,8 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { sendWhatsAppMessage } from '@/lib/integrations/whatsapp/provider';
 import { normalizePhoneNumber } from '@/lib/phone';
 import { setCustomerSession, getCurrentCustomer } from '@/lib/clientAuth';
+import { createPaymentLink } from '@/lib/integrations/payments/provider';
 import { revalidatePath } from 'next/cache';
-import { Prisma, MessageDirection, MessageStatus } from '@prisma/client';
+import { Prisma, MessageDirection, MessageStatus, OrderStatus } from '@prisma/client';
 
 /**
  * Authenticates a client using email and password.
@@ -246,6 +247,7 @@ export async function reserveProductAction(productId: string) {
 
     revalidatePath('/shop');
     revalidatePath(`/p/${productId}`);
+    revalidatePath('/shop/dashboard');
     return { success: true, reservation: result };
   } catch (error: any) {
     console.error('reserveProductAction error:', error);
@@ -311,6 +313,7 @@ export async function cancelReservationAction(reservationId: string) {
     });
 
     revalidatePath('/shop');
+    revalidatePath('/shop/dashboard');
     return { success: true };
   } catch (error: any) {
     console.error('cancelReservationAction error:', error);
@@ -432,5 +435,89 @@ export async function getClientMessagesAction() {
   } catch (error: any) {
     console.error('getClientMessagesAction error:', error);
     return { error: error.message || 'Failed to fetch messages.' };
+  }
+}
+
+/**
+ * Initiates the checkout payment process for a reserved product.
+ */
+export async function clientCheckoutAction(data: { reservationId: string }) {
+  const customer = await getCurrentCustomer();
+  if (!customer) {
+    return { error: 'Authentication required. Please log in first.' };
+  }
+
+  try {
+    // 1. Fetch active reservation
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: data.reservationId },
+      include: { product: true },
+    });
+
+    if (!reservation || reservation.status !== 'ACTIVE') {
+      return { error: 'Reservation hold is no longer active.' };
+    }
+
+    if (reservation.customerId !== customer.id) {
+      return { error: 'Unauthorized.' };
+    }
+
+    // 2. Create the Order
+    const count = await prisma.order.count();
+    const orderNumber = `JWR-ORD-${(count + 1).toString().padStart(4, '0')}`;
+
+    const order = await prisma.order.create({
+      data: {
+        customerId: customer.id,
+        orderNumber,
+        subtotal: reservation.product.price,
+        total: reservation.product.price,
+        status: OrderStatus.PENDING,
+        paymentStatus: 'UNPAID',
+        orderItems: {
+          create: {
+            productId: reservation.productId,
+            quantity: 1,
+            unitPrice: reservation.product.price,
+            finalPrice: reservation.product.price,
+          },
+        },
+      },
+    });
+
+    // 3. Generate Razorpay Payment Link
+    const res = await createPaymentLink({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      amount: Number(order.total),
+      customerName: customer.name,
+      customerMobile: customer.normalizedMobile || customer.mobile || '',
+      customerEmail: customer.email || undefined,
+      expiresInMinutes: 120,
+    });
+
+    if (!res.success) {
+      return { error: res.error || 'Failed to generate checkout payment link.' };
+    }
+
+    // 4. Store PaymentRequest record
+    const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
+    await prisma.paymentRequest.create({
+      data: {
+        orderId: order.id,
+        provider: 'RAZORPAY',
+        providerPaymentLinkId: res.providerPaymentLinkId || '',
+        shortUrl: res.shortUrl || '',
+        amount: order.total,
+        status: 'CREATED',
+        expiresAt,
+      },
+    });
+
+    revalidatePath('/shop/dashboard');
+    return { success: true, paymentUrl: res.shortUrl };
+  } catch (error: any) {
+    console.error('clientCheckoutAction error:', error);
+    return { error: error.message || 'Failed to create order checkout.' };
   }
 }

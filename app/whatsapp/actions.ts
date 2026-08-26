@@ -67,12 +67,37 @@ export async function sendWhatsAppChatMessage(conversationId: string, text: stri
       ? new Date() > new Date(conversation.serviceWindowExpiresAt)
       : true;
 
+    // Check if there is a product code or slug to attach the thumbnail image
+    let product = null;
+    const codeMatch = text.match(/(JWR-[A-Z]-[0-9]{2}-[0-9]{4})/i);
+    const slugMatch = text.match(/\/p\/([a-zA-Z0-9_-]+)/);
+
+    if (codeMatch) {
+      product = await prisma.product.findFirst({
+        where: { productCode: { equals: codeMatch[1], mode: 'insensitive' } },
+        include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } },
+      });
+    } else if (slugMatch) {
+      product = await prisma.product.findUnique({
+        where: { slug: slugMatch[1] },
+        include: { images: { orderBy: { sortOrder: 'asc' }, take: 1 } },
+      });
+    }
+
+    const firstImage = product?.images[0]?.url;
+
     // Send using official/mock provider
-    const res = await sendWhatsAppMessage({
-      to: conversation.waId,
-      type: 'text',
-      text: { body: text },
-    });
+    const res = firstImage
+      ? await sendWhatsAppMessage({
+          to: conversation.waId,
+          type: 'image',
+          image: { link: firstImage, caption: text },
+        })
+      : await sendWhatsAppMessage({
+          to: conversation.waId,
+          type: 'text',
+          text: { body: text },
+        });
 
     if (!res.success) {
       return { error: res.error || 'Failed to send message via provider.' };
@@ -84,7 +109,8 @@ export async function sendWhatsAppChatMessage(conversationId: string, text: stri
         conversationId,
         providerMessageId: res.providerMessageId,
         direction: MessageDirection.OUTBOUND,
-        type: 'TEXT',
+        type: firstImage ? 'IMAGE' : 'TEXT',
+        mediaUrl: firstImage || null,
         status: MessageStatus.SENT,
         body: text,
         sentAt: new Date(),

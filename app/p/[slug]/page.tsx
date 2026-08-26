@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { getCurrentCustomer } from '@/lib/clientAuth';
 import ProductInquiryForm from './ProductInquiryForm';
+import HoldTimerBadge from './HoldTimerBadge';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,13 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
         include: {
           definition: true,
         },
+      },
+      reservations: {
+        where: { status: 'ACTIVE' },
+        select: {
+          expiresAt: true,
+        },
+        take: 1,
       },
     },
   });
@@ -178,6 +186,10 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
                 ₹{Number(product.price).toLocaleString('en-IN')}
               </span>
             </div>
+            
+            {product.inventoryStatus === 'RESERVED' && (
+              <HoldTimerBadge expiresAt={product.reservations[0]?.expiresAt?.toISOString()} />
+            )}
             <p className="font-body-lg text-on-surface-variant leading-relaxed">
               {product.description || 'Exquisite design curated by Maison Jawhara.'}
             </p>

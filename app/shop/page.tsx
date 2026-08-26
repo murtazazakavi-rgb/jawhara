@@ -36,6 +36,13 @@ export default async function ShopPage() {
       images: {
         orderBy: { sortOrder: 'asc' },
       },
+      reservations: {
+        where: { status: 'ACTIVE' },
+        select: {
+          expiresAt: true,
+        },
+        take: 1,
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -61,6 +68,9 @@ export default async function ShopPage() {
       url: img.url,
       isPrimary: img.isPrimary,
     })),
+    activeReservation: p.reservations[0]
+      ? { expiresAt: p.reservations[0].expiresAt ? p.reservations[0].expiresAt.toISOString() : null }
+      : null,
   }));
 
   return (

@@ -39,6 +39,7 @@ export default async function CustomerDashboardPage() {
       productCode: h.product.productCode,
       name: h.product.name,
       price: Number(h.product.price),
+      slug: h.product.slug,
       images: h.product.images.map((img) => ({ url: img.url })),
     },
   }));

@@ -7,7 +7,8 @@ import {
   cancelReservationAction, 
   changeClientPasswordAction,
   clientSendMessageAction,
-  getClientMessagesAction
+  getClientMessagesAction,
+  clientCheckoutAction
 } from '../actions';
 
 interface Reservation {
@@ -18,6 +19,7 @@ interface Reservation {
     productCode: string;
     name: string;
     price: number;
+    slug: string;
     images: { url: string }[];
   };
 }
@@ -56,6 +58,8 @@ export default function ShopDashboardClient({
 }: ShopDashboardClientProps) {
   const router = useRouter();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
+  const [expiredHolds, setExpiredHolds] = useState<Record<string, boolean>>({});
 
   // Chat messaging states
   const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
@@ -163,6 +167,7 @@ export default function ShopDashboardClient({
   };
 
   useEffect(() => {
+    let needsRefresh = false;
     const updateTimers = () => {
       const newTimers: Record<string, string> = {};
       activeHolds.forEach((hold) => {
@@ -177,6 +182,10 @@ export default function ShopDashboardClient({
 
         if (diff <= 0) {
           newTimers[hold.id] = 'Expired / Processing release';
+          if (!expiredHolds[hold.id]) {
+            needsRefresh = true;
+            setExpiredHolds(prev => ({ ...prev, [hold.id]: true }));
+          }
         } else {
           const minutes = Math.floor(diff / 60000);
           const seconds = Math.floor((diff % 60000) / 1000);
@@ -184,12 +193,15 @@ export default function ShopDashboardClient({
         }
       });
       setTimeRemaining(newTimers);
+      if (needsRefresh) {
+        router.refresh();
+      }
     };
 
     updateTimers();
     const interval = setInterval(updateTimers, 1000);
     return () => clearInterval(interval);
-  }, [activeHolds]);
+  }, [activeHolds, expiredHolds, router]);
 
   const handleCancelHold = async (reservationId: string) => {
     if (!confirm('Are you sure you want to release this piece? It will be immediately made available for other boutique customers.')) {
@@ -210,6 +222,29 @@ export default function ShopDashboardClient({
       alert('Failed to release piece.');
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleCheckout = async (reservationId: string) => {
+    setCheckingOutId(reservationId);
+    try {
+      const res = await clientCheckoutAction({ reservationId });
+      if (res.error) {
+        alert(res.error);
+      } else if (res.paymentUrl) {
+        // Redirect to Razorpay payment page
+        window.open(res.paymentUrl, '_blank');
+        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        router.refresh();
+      } else {
+        alert('Checkout initiated successfully.');
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to initiate checkout.');
+    } finally {
+      setCheckingOutId(null);
     }
   };
 
@@ -279,16 +314,21 @@ export default function ShopDashboardClient({
                     {/* Pink accent side bar for active holds */}
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#E4C8CF]"></div>
                     
-                    <div className="w-20 h-24 bg-surface-container-low rounded-lg overflow-hidden shrink-0">
+                    <Link 
+                      href={`/p/${hold.product.slug}`}
+                      className="w-20 h-24 bg-surface-container-low rounded-lg overflow-hidden shrink-0 block hover:opacity-90 transition-opacity"
+                    >
                       <img src={img} alt={hold.product.name} className="w-full h-full object-cover" />
-                    </div>
-
+                    </Link>
+                    
                     <div className="flex-grow flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-label-md text-sm text-on-surface font-semibold line-clamp-1">
-                            {hold.product.name}
-                          </h3>
+                          <Link href={`/p/${hold.product.slug}`} className="hover:text-primary transition-colors hover:underline">
+                            <h3 className="font-label-md text-sm text-on-surface font-semibold line-clamp-1">
+                              {hold.product.name}
+                            </h3>
+                          </Link>
                           <span className="font-mono text-[10px] text-outline shrink-0">{hold.product.productCode}</span>
                         </div>
                         <p className="font-headline-sm text-primary text-xs font-semibold mt-1">
@@ -302,13 +342,23 @@ export default function ShopDashboardClient({
                           {timeRemaining[hold.id] || 'Calculating...'}
                         </span>
 
-                        <button
-                          onClick={() => handleCancelHold(hold.id)}
-                          disabled={cancellingId === hold.id}
-                          className="text-[10px] font-label-md text-error hover:underline uppercase tracking-wider cursor-pointer disabled:opacity-50"
-                        >
-                          Release Hold
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleCancelHold(hold.id)}
+                            disabled={cancellingId === hold.id || checkingOutId === hold.id}
+                            className="text-[10px] font-label-md text-error hover:underline uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                          >
+                            Release Hold
+                          </button>
+                          
+                          <button
+                            onClick={() => handleCheckout(hold.id)}
+                            disabled={cancellingId === hold.id || checkingOutId === hold.id}
+                            className="px-3 py-1 bg-primary text-white hover:opacity-90 disabled:opacity-50 text-[10px] font-label-md uppercase tracking-wider rounded cursor-pointer"
+                          >
+                            {checkingOutId === hold.id ? 'Loading...' : 'Buy Now'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

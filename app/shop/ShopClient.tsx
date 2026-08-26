@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { reserveProductAction } from './actions';
@@ -19,6 +19,7 @@ interface Product {
   primaryColour: string | null;
   category: { id: string; name: string };
   images: { url: string; isPrimary: boolean }[];
+  activeReservation?: { expiresAt: string | null } | null;
 }
 
 interface Customer {
@@ -41,6 +42,44 @@ export default function ShopClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
+  
+  // Real-time reservation countdown timers
+  const [timers, setTimers] = useState<Record<string, string>>({});
+  const [expiredHolds, setExpiredHolds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let needsRefresh = false;
+    const update = () => {
+      const now = Date.now();
+      const nextTimers: Record<string, string> = {};
+      
+      initialProducts.forEach(p => {
+        if (p.inventoryStatus === 'RESERVED' && p.activeReservation?.expiresAt) {
+          const diff = new Date(p.activeReservation.expiresAt).getTime() - now;
+          if (diff <= 0) {
+            nextTimers[p.id] = 'Expired';
+            if (!expiredHolds[p.id]) {
+              needsRefresh = true;
+              setExpiredHolds(prev => ({ ...prev, [p.id]: true }));
+            }
+          } else {
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            nextTimers[p.id] = `${mins}m ${secs}s`;
+          }
+        }
+      });
+      
+      setTimers(nextTimers);
+      if (needsRefresh) {
+        router.refresh();
+      }
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [initialProducts, expiredHolds, router]);
   
   // State filters
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -248,8 +287,9 @@ export default function ShopClient({
                       </span>
                       
                       {isReserved && (
-                        <span className="text-[9px] font-label-sm uppercase tracking-wider px-2 py-0.5 bg-error/15 text-error border border-error/20 rounded font-bold backdrop-blur-sm">
-                          Reserved / On Hold
+                        <span className="text-[9px] font-label-sm uppercase tracking-wider px-2 py-0.5 bg-error/15 text-error border border-error/20 rounded font-bold backdrop-blur-sm flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[10px]">schedule</span>
+                          Hold: {timers[p.id] || 'Reserved'}
                         </span>
                       )}
                       
@@ -303,8 +343,9 @@ export default function ShopClient({
                             Hold Piece
                           </button>
                         ) : isReserved ? (
-                          <span className="text-[10px] font-label-md text-outline italic uppercase tracking-wider">
-                            Temporarily Taken
+                          <span className="text-[10px] font-label-md text-error italic uppercase tracking-wider flex items-center gap-1 font-semibold">
+                            <span className="material-symbols-outlined text-[12px]">schedule</span>
+                            On Hold ({timers[p.id] || 'Reserved'})
                           </span>
                         ) : (
                           <span className="text-[10px] font-label-md text-outline italic uppercase tracking-wider">
