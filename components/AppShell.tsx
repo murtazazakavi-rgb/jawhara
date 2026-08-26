@@ -85,6 +85,15 @@ export default function AppShell({ children, user }: AppShellProps) {
 
           {/* Right Header Area (Search, Notifications, Profile) */}
           <div className="flex items-center gap-4 text-on-surface-variant relative">
+            <Link
+              href="/shop"
+              className="hover:text-primary transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-outline-variant/35 text-xs font-semibold font-label-md uppercase tracking-wider text-on-surface-variant hover:border-primary/30"
+              title="Switch to customer Lookbook view"
+            >
+              <span className="material-symbols-outlined text-[18px]">shopping_basket</span>
+              <span className="hidden sm:inline">Customer View</span>
+            </Link>
+
             <button className="hover:text-primary transition-colors">
               <span className="material-symbols-outlined text-[24px]">search</span>
             </button>
@@ -114,6 +123,14 @@ export default function AppShell({ children, user }: AppShellProps) {
                     <p className="font-label-md text-xs text-on-surface truncate">{user?.name}</p>
                     <p className="font-label-sm text-[10px] text-on-surface-variant truncate">{user?.email}</p>
                   </div>
+                  <Link
+                    href="/shop"
+                    onClick={() => setShowProfileMenu(false)}
+                    className="font-label-sm text-on-surface hover:bg-surface-container-low px-3 py-2 rounded flex items-center gap-2 border-b border-outline-variant/10 pb-2 mb-1"
+                  >
+                    <span className="material-symbols-outlined text-sm text-primary">shopping_basket</span>
+                    Customer View
+                  </Link>
                   <Link
                     href="/settings"
                     onClick={() => setShowProfileMenu(false)}

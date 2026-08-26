@@ -32,12 +32,14 @@ interface ShopClientProps {
   initialProducts: Product[];
   categories: { id: string; name: string }[];
   customer: Customer | null;
+  isAdmin?: boolean;
 }
 
 export default function ShopClient({
   initialProducts,
   categories,
   customer,
+  isAdmin = false,
 }: ShopClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -147,6 +149,18 @@ export default function ShopClient({
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md flex flex-col relative overflow-x-hidden">
+      {/* Admin preview banner */}
+      {isAdmin && (
+        <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4 text-center text-xs font-semibold text-primary flex items-center justify-center gap-2 relative z-50 animate-fade-in shrink-0">
+          <span className="material-symbols-outlined text-[16px] text-primary">visibility</span>
+          <span>Viewing boutique Lookbook in Customer Mode.</span>
+          <Link href="/" className="underline hover:text-primary-hover font-bold ml-1 flex items-center gap-0.5">
+            Back to Admin Panel
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </Link>
+        </div>
+      )}
+
       {/* Rose Watermark background */}
       <div className="fixed inset-0 rose-watermark opacity-[0.02] z-0 pointer-events-none"></div>
 

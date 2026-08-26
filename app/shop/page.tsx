@@ -1,6 +1,7 @@
 import React from 'react';
 import { prisma } from '@/lib/prisma';
 import { getCurrentCustomer } from '@/lib/clientAuth';
+import { getCurrentUser } from '@/lib/auth';
 import ShopClient from './ShopClient';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,9 @@ export default async function ShopPage() {
         mobile: customer.mobile,
       }
     : null;
+
+  const adminUser = await getCurrentUser();
+  const isAdmin = !!adminUser;
 
   // 2. Fetch categories
   const categories = await prisma.productCategory.findMany({
@@ -78,6 +82,7 @@ export default async function ShopPage() {
       initialProducts={products}
       categories={categories}
       customer={clientInfo}
+      isAdmin={isAdmin}
     />
   );
 }
