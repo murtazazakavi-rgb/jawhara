@@ -1,10 +1,13 @@
 import { RazorpayPaymentClient, PaymentLinkOptions, PaymentLinkResponse } from './razorpay';
 import crypto from 'crypto';
+import { headers } from 'next/headers';
 
 class MockPaymentClient {
   async createPaymentLink(options: PaymentLinkOptions): Promise<PaymentLinkResponse> {
     const mockLinkId = `plink_${crypto.randomBytes(8).toString('hex')}`;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const host = (await headers()).get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') ? 'http' : 'https';
+    const siteUrl = `${protocol}://${host}`;
     const mockShortUrl = `${siteUrl}/api/public/pay-mock/${mockLinkId}`;
 
     console.log('--- [MOCK PAYMENT LINK OUTBOUND] ---');

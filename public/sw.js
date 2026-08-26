@@ -1,7 +1,7 @@
 const CACHE_NAME = 'jawhara-cache-v1';
 const ASSETS = [
-  '/shop',
-  '/shop/login',
+  '/',
+  '/login',
   '/manifest.json'
 ];
 
@@ -38,7 +38,7 @@ self.addEventListener('fetch', (event) => {
         return response;
       }).catch(() => {
         // Return fallback if fetch fails offline
-        return caches.match('/shop');
+        return caches.match('/');
       });
     })
   );

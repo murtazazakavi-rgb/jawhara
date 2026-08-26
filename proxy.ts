@@ -25,8 +25,10 @@ export function proxy(request: NextRequest) {
 
   // Let public routes go through
   const isPublicPath =
+    path === '/' ||
     path === '/login' ||
-    path.startsWith('/shop') ||
+    path.startsWith('/admin/login') ||
+    path.startsWith('/dashboard') ||
     path.startsWith('/p/') ||
     path.startsWith('/api/public/') ||
     path.startsWith('/api/webhooks/') || // webhook routes must be public
@@ -41,14 +43,14 @@ export function proxy(request: NextRequest) {
   const isTokenValid = token ? verifySessionToken(token) : false;
 
   if (!isPublicPath && !isTokenValid) {
-    const redirectResponse = NextResponse.redirect(new URL('/login', request.url));
+    const redirectResponse = NextResponse.redirect(new URL('/admin/login', request.url));
     // Clear invalid session cookie to prevent subsequent loops
     redirectResponse.cookies.set('jawhara_session', '', { maxAge: -1, path: '/' });
     return redirectResponse;
   }
 
-  if (path === '/login' && isTokenValid) {
-    return NextResponse.redirect(new URL('/', request.url));
+  if (path === '/admin/login' && isTokenValid) {
+    return NextResponse.redirect(new URL('/admin', request.url));
   }
 
   return NextResponse.next();

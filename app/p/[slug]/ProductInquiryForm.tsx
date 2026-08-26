@@ -46,7 +46,7 @@ export default function ProductInquiryForm({ productId, isLoggedIn }: ProductInq
           To chat directly with our boutique assistant about this piece:
         </p>
         <Link
-          href="/shop/login"
+          href="/login"
           className="inline-block bg-primary-container text-on-primary-container hover:opacity-90 font-label-md text-xs uppercase tracking-wider px-5 py-2 rounded-lg transition-opacity"
         >
           Sign In to Portal
@@ -71,7 +71,7 @@ export default function ProductInquiryForm({ productId, isLoggedIn }: ProductInq
       {success ? (
         <div className="bg-success/10 border border-success/20 text-success text-xs p-3 rounded-lg mb-4 leading-relaxed">
           <strong>Inquiry Sent!</strong> Your message has been routed to our assistant. You can check for replies on your{' '}
-          <Link href="/shop/dashboard" className="underline font-bold hover:text-success/80">
+          <Link href="/dashboard" className="underline font-bold hover:text-success/80">
             Lookbook Dashboard
           </Link>.
         </div>

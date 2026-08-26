@@ -1,5 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -127,7 +128,10 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
   const isSold = product.inventoryStatus === 'SOLD';
 
   // Construct WhatsApp Inquiry link
-  const waText = `Hi Jawhara, I am interested in inquiring about "${product.name}" (Code: ${product.productCode}). Is this piece still available?\nPrice: ₹${Number(product.price).toLocaleString('en-IN')}\nLink: ${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/p/${product.slug}`;
+  const host = (await headers()).get('host') || 'localhost:3000';
+  const protocol = host.startsWith('localhost') ? 'http' : 'https';
+  const siteUrl = `${protocol}://${host}`;
+  const waText = `Hi Jawhara, I am interested in inquiring about "${product.name}" (Code: ${product.productCode}). Is this piece still available?\nPrice: ₹${Number(product.price).toLocaleString('en-IN')}\nLink: ${siteUrl}/p/${product.slug}`;
   const waUrl = `https://wa.me/${boutiquePhone}?text=${encodeURIComponent(waText)}`;
 
   return (
@@ -137,7 +141,7 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
         <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4 text-center text-xs font-semibold text-primary flex items-center justify-center gap-2 relative z-50 animate-fade-in shrink-0">
           <span className="material-symbols-outlined text-[16px] text-primary">visibility</span>
           <span>Viewing boutique Lookbook in Customer Mode.</span>
-          <Link href="/" className="underline hover:text-primary-hover font-bold ml-1 flex items-center gap-0.5">
+          <Link href="/admin" className="underline hover:text-primary-hover font-bold ml-1 flex items-center gap-0.5">
             Back to Admin Panel
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
@@ -298,7 +302,7 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
       {/* Footer */}
       <footer className="w-full py-8 text-center border-t border-outline-variant/10 bg-surface-container-lowest z-10 flex flex-col items-center">
         <span className="font-label-sm uppercase tracking-widest text-outline text-[10px]">
-          Maison Jawhara © 2026
+          Jawhara - Dynamic Lookbook by MJZ © 2026
         </span>
       </footer>
     </div>

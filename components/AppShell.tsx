@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { logout } from '@/app/login/actions';
+import { logout } from '@/app/admin/login/actions';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ export default function AppShell({ children, user }: AppShellProps) {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    router.push('/admin/login');
     router.refresh();
   };
 

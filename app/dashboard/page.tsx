@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function CustomerDashboardPage() {
   const customer = await getCurrentCustomer();
   if (!customer) {
-    redirect('/shop/login');
+    redirect('/login');
   }
 
   // 1. Fetch active holds (reservations)

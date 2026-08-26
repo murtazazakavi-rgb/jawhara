@@ -1,3 +1,5 @@
+import { headers } from 'next/headers';
+
 export interface PaymentLinkOptions {
   orderId: string;
   orderNumber: string;
@@ -34,6 +36,10 @@ export class RazorpayPaymentClient {
       return { success: false, error: 'Integration credentials missing.' };
     }
 
+    const host = (await headers()).get('host') || 'localhost:3000';
+    const protocol = host.startsWith('localhost') ? 'http' : 'https';
+    const siteUrl = `${protocol}://${host}`;
+
     const url = 'https://api.razorpay.com/v1/payment_links';
     
     // Convert to paise (minor units)
@@ -60,7 +66,7 @@ export class RazorpayPaymentClient {
         email: false,
       },
       reminder_enable: true,
-      callback_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/orders`,
+      callback_url: `${siteUrl}/orders`,
       callback_method: 'get',
     };
 

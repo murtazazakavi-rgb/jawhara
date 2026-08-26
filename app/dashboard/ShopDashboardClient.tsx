@@ -10,7 +10,7 @@ import {
   clientSendMessageAction,
   getClientMessagesAction,
   clientCheckoutAction
-} from '../actions';
+} from '../shop/actions';
 
 interface Reservation {
   id: string;
@@ -97,14 +97,14 @@ export default function ShopDashboardClient({
     }
   };
 
-  // Scroll to bottom on new messages (skips initial mount scroll)
+  // Scroll to bottom on new messages (only when count increases)
+  const prevLengthRef = useRef(messages.length);
   useEffect(() => {
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
+    if (messages.length > prevLengthRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    prevLengthRef.current = messages.length;
+  }, [messages.length]);
 
   // Periodic poll for staff replies
   useEffect(() => {
@@ -326,7 +326,7 @@ export default function ShopDashboardClient({
       {/* Header bar */}
       <header className="w-full py-6 border-b border-outline-variant/20 bg-surface-container-lowest z-10 sticky top-0 shadow-sm">
         <div className="max-w-container-max mx-auto px-4 sm:px-6 md:px-8 flex justify-between items-center">
-          <Link href="/shop" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
             <span className="material-symbols-outlined">arrow_back</span>
             <span className="font-label-md uppercase tracking-wider text-xs">Back to Gallery</span>
           </Link>
@@ -366,7 +366,7 @@ export default function ShopDashboardClient({
               <span className="material-symbols-outlined text-outline/30 text-5xl">inventory_2</span>
               <p className="font-body-md text-on-surface-variant italic text-sm">You have no items currently on hold.</p>
               <Link
-                href="/shop"
+                href="/"
                 className="inline-block bg-primary text-white text-xs font-label-md uppercase tracking-wider px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
               >
                 Browse Pieces
@@ -656,13 +656,13 @@ export default function ShopDashboardClient({
       </div>
     </main>
 
-      {/* Footer */}
-      <footer className="w-full py-8 border-t border-outline-variant/20 bg-surface-container-lowest mt-16 text-center">
-        <p className="text-[10px] font-mono text-outline">
-          © {new Date().getFullYear()} Maison Jawhara. Customer Dashboard.
-        </p>
-      </footer>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-    </div>
+    {/* Footer */}
+    <footer className="w-full py-8 border-t border-outline-variant/20 bg-surface-container-lowest mt-16 text-center">
+      <p className="text-[10px] font-mono text-outline">
+        © {new Date().getFullYear()} Jawhara - Dynamic Lookbook by MJZ
+      </p>
+    </footer>
+    <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+  </div>
   );
 }

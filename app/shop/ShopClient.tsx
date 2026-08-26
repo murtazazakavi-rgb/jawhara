@@ -94,7 +94,7 @@ export default function ShopClient({
     try {
       const response = await fetch('/shop/api/logout', { method: 'POST' });
       if (response.ok) {
-        window.location.href = '/shop';
+        window.location.href = '/';
       }
     } catch (err) {
       console.error(err);
@@ -105,7 +105,7 @@ export default function ShopClient({
   const handleReserve = async (productId: string) => {
     if (!customer) {
       // Force log in
-      router.push('/shop/login');
+      router.push('/login');
       return;
     }
 
@@ -154,7 +154,7 @@ export default function ShopClient({
         <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4 text-center text-xs font-semibold text-primary flex items-center justify-center gap-2 relative z-50 animate-fade-in shrink-0">
           <span className="material-symbols-outlined text-[16px] text-primary">visibility</span>
           <span>Viewing boutique Lookbook in Customer Mode.</span>
-          <Link href="/" className="underline hover:text-primary-hover font-bold ml-1 flex items-center gap-0.5">
+          <Link href="/admin" className="underline hover:text-primary-hover font-bold ml-1 flex items-center gap-0.5">
             Back to Admin Panel
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
           </Link>
@@ -184,7 +184,7 @@ export default function ShopClient({
                   <p className="font-body-md text-sm text-on-surface font-semibold">{customer.name}</p>
                 </div>
                 <Link
-                  href="/shop/dashboard"
+                  href="/dashboard"
                   className="px-4 py-2 bg-primary-container text-on-primary-container text-xs font-label-md uppercase tracking-wider rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-[16px]">dashboard</span>
@@ -199,7 +199,7 @@ export default function ShopClient({
               </div>
             ) : (
               <Link
-                href="/shop/login"
+                href="/login"
                 className="px-5 py-2.5 bg-primary text-white text-xs font-label-md uppercase tracking-wider rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
               >
                 <span className="material-symbols-outlined text-[16px]">account_circle</span>
@@ -320,53 +320,56 @@ export default function ShopClient({
                       )}
                     </div>
 
-                    {/* Image Frame */}
-                    <div className="aspect-[3/4] bg-surface-container-low overflow-hidden relative shrink-0">
-                      <img 
-                        src={mainImg} 
-                        alt={p.name} 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    </div>
-
-                    {/* Meta info */}
-                    <div className="p-4 flex-grow flex flex-col justify-between">
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-mono text-outline block">{p.productCode}</span>
-                        <h3 className="font-label-md text-sm text-on-surface font-semibold group-hover:text-primary transition-colors line-clamp-1">
-                          {p.name}
-                        </h3>
-                        {p.shortDesc && (
-                          <p className="font-body-sm text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
-                            {p.shortDesc}
-                          </p>
-                        )}
+                    <Link href={`/p/${p.slug}`} className="flex flex-col flex-grow cursor-pointer group/link">
+                      {/* Image Frame */}
+                      <div className="aspect-[3/4] bg-surface-container-low overflow-hidden relative shrink-0">
+                        <img 
+                          src={mainImg} 
+                          alt={p.name} 
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover/link:scale-105"
+                        />
                       </div>
 
-                      <div className="mt-4 pt-3 border-t border-outline-variant/10 flex items-center justify-between gap-2">
-                        <span className="font-headline-sm text-primary text-sm font-semibold">
-                          ₹{p.price.toLocaleString('en-IN')}
+                      {/* Meta info */}
+                      <div className="p-4 flex-grow flex flex-col justify-between">
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-mono text-outline block">{p.productCode}</span>
+                          <h3 className="font-label-md text-sm text-on-surface font-semibold group-hover/link:text-primary transition-colors line-clamp-1">
+                            {p.name}
+                          </h3>
+                          {p.shortDesc && (
+                            <p className="font-body-sm text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
+                              {p.shortDesc}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+
+                    {/* Action bar */}
+                    <div className="px-4 pb-4 flex items-center justify-between gap-2 border-t border-outline-variant/10 pt-3">
+                      <span className="font-headline-sm text-primary text-sm font-semibold">
+                        ₹{p.price.toLocaleString('en-IN')}
+                      </span>
+                      
+                      {isAvailable ? (
+                        <button
+                          onClick={() => handleReserve(p.id)}
+                          className="bg-primary text-white text-[10px] font-label-md uppercase tracking-wider px-3 py-1.5 rounded hover:opacity-90 cursor-pointer flex items-center gap-1 z-20"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">lock</span>
+                          Hold Piece
+                        </button>
+                      ) : isReserved ? (
+                        <span className="text-[10px] font-label-md text-error italic uppercase tracking-wider flex items-center gap-1 font-semibold">
+                          <span className="material-symbols-outlined text-[12px]">schedule</span>
+                          On Hold ({timers[p.id] || 'Reserved'})
                         </span>
-                        
-                        {isAvailable ? (
-                          <button
-                            onClick={() => handleReserve(p.id)}
-                            className="bg-primary text-white text-[10px] font-label-md uppercase tracking-wider px-3 py-1.5 rounded hover:opacity-90 cursor-pointer flex items-center gap-1"
-                          >
-                            <span className="material-symbols-outlined text-[12px]">lock</span>
-                            Hold Piece
-                          </button>
-                        ) : isReserved ? (
-                          <span className="text-[10px] font-label-md text-error italic uppercase tracking-wider flex items-center gap-1 font-semibold">
-                            <span className="material-symbols-outlined text-[12px]">schedule</span>
-                            On Hold ({timers[p.id] || 'Reserved'})
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-label-md text-outline italic uppercase tracking-wider">
-                            Unavailable
-                          </span>
-                        )}
-                      </div>
+                      ) : (
+                        <span className="text-[10px] font-label-md text-outline italic uppercase tracking-wider">
+                          Unavailable
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -379,7 +382,7 @@ export default function ShopClient({
       {/* Footer */}
       <footer className="w-full py-8 border-t border-outline-variant/20 bg-surface-container-lowest mt-16 text-center">
         <p className="text-[10px] font-mono text-outline">
-          © {new Date().getFullYear()} Maison Jawhara. Dynamic Lookbook Client.
+          © {new Date().getFullYear()} Jawhara - Dynamic Lookbook by MJZ
         </p>
       </footer>
     </div>
