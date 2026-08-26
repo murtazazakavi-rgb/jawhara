@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function WhatsAppInboxPage() {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   // Fetch initial conversations on the server

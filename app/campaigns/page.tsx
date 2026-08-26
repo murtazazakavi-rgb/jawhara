@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function CampaignsPage() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   // Role Security Check - SALES role cannot access marketing campaigns

@@ -17,7 +17,7 @@ interface CustomerDetailPageProps {
 export default async function CustomerDetailPage({ params }: CustomerDetailPageProps) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   const { id } = await params;

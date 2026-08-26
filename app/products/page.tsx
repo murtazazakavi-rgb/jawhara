@@ -21,7 +21,7 @@ interface ProductsPageProps {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   const params = await searchParams;

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function CustomersPage() {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   // Fetch all customers, including their paid orders to calculate total spend

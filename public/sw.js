@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jawhara-cache-v1';
+const CACHE_NAME = 'jawhara-cache-v2';
 const ASSETS = [
   '/',
   '/login',
@@ -15,12 +15,33 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
   // Only handle standard HTTP GET requests
   if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  // Do not cache API routes, Next.js dynamic chunks/actions, or dynamic page routes
+  if (
+    url.pathname.startsWith('/api/') || 
+    url.pathname.startsWith('/_next/') || 
+    !url.pathname.includes('.')
+  ) {
+    return; // Let the browser handle these normally via network
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {

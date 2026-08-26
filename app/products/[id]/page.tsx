@@ -16,7 +16,7 @@ interface ProductDetailPageProps {
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   const { id } = await params;
