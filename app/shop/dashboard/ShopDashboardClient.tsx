@@ -406,7 +406,19 @@ export default function ShopDashboardClient({
                   <div className="flex justify-between items-center text-xs">
                     <div>
                       <span className="text-outline">Order Status: </span>
-                      <span className="font-semibold text-on-surface-variant uppercase">{ord.status}</span>
+                      <span className="font-semibold text-on-surface-variant uppercase">
+                        {ord.status === 'PENDING'
+                          ? 'Payment Pending'
+                          : ord.status === 'PACKING'
+                          ? 'Order Placed Successfully'
+                          : ord.status === 'DISPATCHED'
+                          ? 'Shipped / Dispatched'
+                          : ord.status === 'DELIVERED'
+                          ? 'Delivered'
+                          : ord.status === 'RETURNED'
+                          ? 'Returned'
+                          : ord.status}
+                      </span>
                     </div>
                     <div>
                       <span className="text-outline">Amount: </span>
