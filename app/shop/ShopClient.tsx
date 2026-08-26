@@ -94,7 +94,7 @@ export default function ShopClient({
     try {
       const response = await fetch('/shop/api/logout', { method: 'POST' });
       if (response.ok) {
-        router.refresh();
+        window.location.href = '/shop';
       }
     } catch (err) {
       console.error(err);

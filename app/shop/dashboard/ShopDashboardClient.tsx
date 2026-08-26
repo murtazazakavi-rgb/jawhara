@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Script from 'next/script';
 import { 
   cancelReservationAction, 
   changeClientPasswordAction,
@@ -66,6 +67,7 @@ export default function ShopDashboardClient({
   const [newMsg, setNewMsg] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,8 +97,12 @@ export default function ShopDashboardClient({
     }
   };
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages (skips initial mount scroll)
   useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -231,19 +237,83 @@ export default function ShopDashboardClient({
       const res = await clientCheckoutAction({ reservationId });
       if (res.error) {
         alert(res.error);
+        setCheckingOutId(null);
+      } else if (res.useStandardCheckout) {
+        // Standard Checkout Modal Integration
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TUMOjBupLIHjyd';
+        
+        const options = {
+          key: keyId,
+          amount: res.amount,
+          currency: res.currency || 'INR',
+          name: 'Jawhara',
+          description: `Payment for Order ${res.orderNumber}`,
+          order_id: res.razorpayOrderId,
+          handler: async function (response: any) {
+            try {
+              // Verify signature
+              const verifyRes = await fetch('/api/verify-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+
+              if (!verifyRes.ok) {
+                throw new Error(verifyData.error || 'Payment signature verification failed.');
+              }
+
+              alert('Payment successful! Your order has been placed and is being processed.');
+              router.refresh();
+            } catch (verifyErr: any) {
+              console.error(verifyErr);
+              alert(`Verification Error: ${verifyErr.message}`);
+            } finally {
+              setCheckingOutId(null);
+            }
+          },
+          prefill: {
+            name: res.customerName,
+            email: res.customerEmail || undefined,
+            contact: res.customerMobile || undefined,
+          },
+          theme: {
+            color: '#E4C8CF',
+          },
+          modal: {
+            ondismiss: function () {
+              setCheckingOutId(null);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (response: any) {
+          alert(`Payment failed: ${response.error.description}`);
+          setCheckingOutId(null);
+        });
+        rzp.open();
       } else if (res.paymentUrl) {
         // Redirect to Razorpay payment page
         window.open(res.paymentUrl, '_blank');
         alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
         router.refresh();
+        setCheckingOutId(null);
       } else {
         alert('Checkout initiated successfully.');
         router.refresh();
+        setCheckingOutId(null);
       }
     } catch (err) {
       console.error(err);
       alert('Failed to initiate checkout.');
-    } finally {
       setCheckingOutId(null);
     }
   };
@@ -592,6 +662,7 @@ export default function ShopDashboardClient({
           © {new Date().getFullYear()} Maison Jawhara. Customer Dashboard.
         </p>
       </footer>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
     </div>
   );
 }

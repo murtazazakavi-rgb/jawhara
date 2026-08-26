@@ -56,6 +56,26 @@ export async function GET(request: Request) {
             });
           }
 
+          // C. Delete any pending unpaid orders for this customer and product
+          const pendingOrders = await tx.order.findMany({
+            where: {
+              customerId: res.customerId,
+              paymentStatus: 'UNPAID',
+              status: 'PENDING',
+              orderItems: {
+                some: {
+                  productId: res.productId,
+                },
+              },
+            },
+          });
+
+          for (const order of pendingOrders) {
+            await tx.order.delete({
+              where: { id: order.id },
+            });
+          }
+
           // C. Log Activity
           await tx.activityLog.create({
             data: {

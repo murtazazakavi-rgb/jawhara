@@ -7,6 +7,7 @@ import { setCustomerSession, getCurrentCustomer } from '@/lib/clientAuth';
 import { createPaymentLink } from '@/lib/integrations/payments/provider';
 import { revalidatePath } from 'next/cache';
 import { Prisma, MessageDirection, MessageStatus, OrderStatus } from '@prisma/client';
+import Razorpay from 'razorpay';
 
 /**
  * Authenticates a client using email and password.
@@ -245,9 +246,7 @@ export async function reserveProductAction(productId: string) {
       return reservation;
     });
 
-    revalidatePath('/shop');
-    revalidatePath(`/p/${productId}`);
-    revalidatePath('/shop/dashboard');
+    revalidatePath('/', 'layout');
     return { success: true, reservation: result };
   } catch (error: any) {
     console.error('reserveProductAction error:', error);
@@ -301,6 +300,26 @@ export async function cancelReservationAction(reservationId: string) {
         });
       }
 
+      // 3. Delete any pending unpaid orders for this customer and product
+      const pendingOrders = await tx.order.findMany({
+        where: {
+          customerId: customer.id,
+          paymentStatus: 'UNPAID',
+          status: 'PENDING',
+          orderItems: {
+            some: {
+              productId: reservation.productId,
+            },
+          },
+        },
+      });
+
+      for (const order of pendingOrders) {
+        await tx.order.delete({
+          where: { id: order.id },
+        });
+      }
+
       // 3. Log interaction
       await tx.customerInteraction.create({
         data: {
@@ -312,8 +331,7 @@ export async function cancelReservationAction(reservationId: string) {
       });
     });
 
-    revalidatePath('/shop');
-    revalidatePath('/shop/dashboard');
+    revalidatePath('/', 'layout');
     return { success: true };
   } catch (error: any) {
     console.error('cancelReservationAction error:', error);
@@ -393,8 +411,7 @@ export async function clientSendMessageAction(data: {
       },
     });
 
-    revalidatePath('/whatsapp');
-    revalidatePath('/shop/dashboard');
+    revalidatePath('/', 'layout');
     return { success: true };
   } catch (error: any) {
     console.error('clientSendMessageAction error:', error);
@@ -485,37 +502,85 @@ export async function clientCheckoutAction(data: { reservationId: string }) {
       },
     });
 
-    // 3. Generate Razorpay Payment Link
-    const res = await createPaymentLink({
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      amount: Number(order.total),
-      customerName: customer.name,
-      customerMobile: customer.normalizedMobile || customer.mobile || '',
-      customerEmail: customer.email || undefined,
-      expiresInMinutes: 120,
-    });
+    const provider = process.env.PAYMENT_PROVIDER || 'mock';
+    if (provider === 'razorpay') {
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (!res.success) {
-      return { error: res.error || 'Failed to generate checkout payment link.' };
-    }
+      if (!keyId || !keySecret) {
+        return { error: 'Razorpay configuration error.' };
+      }
 
-    // 4. Store PaymentRequest record
-    const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
-    await prisma.paymentRequest.create({
-      data: {
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+
+      const amountInPaise = Math.round(Number(order.total) * 100);
+      const rzpOrder = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: order.orderNumber,
+      });
+
+      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
+      await prisma.paymentRequest.create({
+        data: {
+          orderId: order.id,
+          provider: 'RAZORPAY',
+          providerPaymentLinkId: rzpOrder.id,
+          shortUrl: '',
+          amount: order.total,
+          status: 'CREATED',
+          expiresAt,
+        },
+      });
+
+      revalidatePath('/', 'layout');
+      return {
+        success: true,
+        useStandardCheckout: true,
+        razorpayOrderId: rzpOrder.id,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        orderNumber: order.orderNumber,
+        customerName: customer.name,
+        customerEmail: customer.email || '',
+        customerMobile: customer.normalizedMobile || customer.mobile || '',
+      };
+    } else {
+      // 3. Generate Razorpay Payment Link
+      const res = await createPaymentLink({
         orderId: order.id,
-        provider: 'RAZORPAY',
-        providerPaymentLinkId: res.providerPaymentLinkId || '',
-        shortUrl: res.shortUrl || '',
-        amount: order.total,
-        status: 'CREATED',
-        expiresAt,
-      },
-    });
+        orderNumber: order.orderNumber,
+        amount: Number(order.total),
+        customerName: customer.name,
+        customerMobile: customer.normalizedMobile || customer.mobile || '',
+        customerEmail: customer.email || undefined,
+        expiresInMinutes: 120,
+      });
 
-    revalidatePath('/shop/dashboard');
-    return { success: true, paymentUrl: res.shortUrl };
+      if (!res.success) {
+        return { error: res.error || 'Failed to generate checkout payment link.' };
+      }
+
+      // 4. Store PaymentRequest record
+      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
+      await prisma.paymentRequest.create({
+        data: {
+          orderId: order.id,
+          provider: 'RAZORPAY',
+          providerPaymentLinkId: res.providerPaymentLinkId || '',
+          shortUrl: res.shortUrl || '',
+          amount: order.total,
+          status: 'CREATED',
+          expiresAt,
+        },
+      });
+
+      revalidatePath('/', 'layout');
+      return { success: true, paymentUrl: res.shortUrl };
+    }
   } catch (error: any) {
     console.error('clientCheckoutAction error:', error);
     return { error: error.message || 'Failed to create order checkout.' };

@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { encrypt, decrypt } from './auth';
 import { prisma } from './prisma';
 
@@ -33,38 +33,85 @@ export async function setCustomerSession(customer: { id: string; email: string; 
 
 export async function getCustomerSession(): Promise<CustomerSessionPayload | null> {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(CLIENT_COOKIE_NAME);
-  if (!sessionCookie) return null;
+  console.log('[DEBUG AUTH] getCustomerSession: All cookies in store:', cookieStore.getAll().map(c => c.name));
+  let sessionCookieValue = cookieStore.get(CLIENT_COOKIE_NAME)?.value;
 
-  const decrypted = decrypt(sessionCookie.value);
-  if (!decrypted) return null;
+  // Fallback: Parse from raw headers Cookie if cookies() returns empty
+  if (!sessionCookieValue) {
+    console.log('[DEBUG AUTH] getCustomerSession: Cookie not found in cookies(), trying headers()...');
+    try {
+      const reqHeaders = await headers();
+      const rawCookie = reqHeaders.get('cookie');
+      if (rawCookie) {
+        const cookiesMap = new Map<string, string>();
+        rawCookie.split(';').forEach(c => {
+          const parts = c.split('=');
+          const name = parts[0]?.trim();
+          const value = parts.slice(1).join('=')?.trim();
+          if (name && value) {
+            cookiesMap.set(name, value);
+          }
+        });
+        sessionCookieValue = cookiesMap.get(CLIENT_COOKIE_NAME);
+        if (sessionCookieValue) {
+          console.log('[DEBUG AUTH] getCustomerSession: Found cookie value in headers() fallback!');
+        }
+      }
+    } catch (headerErr) {
+      console.error('[DEBUG AUTH] getCustomerSession: Failed to read headers() fallback', headerErr);
+    }
+  }
+
+  if (!sessionCookieValue) {
+    console.log('[DEBUG AUTH] getCustomerSession: No session cookie value found anywhere');
+    return null;
+  }
+
+  const decrypted = decrypt(sessionCookieValue);
+  if (!decrypted) {
+    console.log('[DEBUG AUTH] getCustomerSession: Decryption failed');
+    return null;
+  }
 
   try {
     const payload: CustomerSessionPayload = JSON.parse(decrypted);
     const expireDate = new Date(payload.expires);
     if (expireDate < new Date()) {
+      console.log('[DEBUG AUTH] getCustomerSession: Cookie expired');
       return null;
     }
     return payload;
   } catch (e) {
+    console.log('[DEBUG AUTH] getCustomerSession: JSON parse error', e);
     return null;
   }
 }
 
 export async function getCurrentCustomer() {
   const session = await getCustomerSession();
-  if (!session) return null;
+  if (!session) {
+    console.log('[DEBUG AUTH] getCurrentCustomer: No session payload');
+    return null;
+  }
 
   const customer = await prisma.customer.findUnique({
     where: { id: session.customerId },
   });
 
-  if (!customer || customer.isArchived) return null;
+  if (!customer) {
+    console.log('[DEBUG AUTH] getCurrentCustomer: Customer not found in DB:', session.customerId);
+    return null;
+  }
+
+  if (customer.isArchived) {
+    console.log('[DEBUG AUTH] getCurrentCustomer: Customer is archived');
+    return null;
+  }
 
   return customer;
 }
 
 export async function clearCustomerSession() {
   const cookieStore = await cookies();
-  cookieStore.set(CLIENT_COOKIE_NAME, '', { maxAge: -1, path: '/' });
+  cookieStore.delete(CLIENT_COOKIE_NAME);
 }

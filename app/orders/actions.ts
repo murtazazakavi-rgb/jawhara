@@ -50,7 +50,7 @@ export async function updateOrderStatus({
       },
     });
 
-    revalidatePath('/orders');
+    revalidatePath('/', 'layout');
     return { success: true, order };
   } catch (err: any) {
     return { error: err.message || 'Failed to update order status.' };
@@ -86,7 +86,7 @@ export async function updateOrderPayment({
       },
     });
 
-    revalidatePath('/orders');
+    revalidatePath('/', 'layout');
     return { success: true, order };
   } catch (err: any) {
     return { error: err.message || 'Failed to update payment status.' };

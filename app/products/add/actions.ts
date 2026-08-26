@@ -104,7 +104,7 @@ export async function createProduct(data: {
       return product;
     });
 
-    revalidatePath('/products');
+    revalidatePath('/', 'layout');
     return { success: true, productId: result.id, slug: result.slug };
   } catch (e: any) {
     console.error('Failed to create product:', e);

@@ -30,6 +30,9 @@ export function proxy(request: NextRequest) {
     path.startsWith('/p/') ||
     path.startsWith('/api/public/') ||
     path.startsWith('/api/webhooks/') || // webhook routes must be public
+    path.startsWith('/api/create-order') ||
+    path.startsWith('/api/verify-payment') ||
+    path.startsWith('/razorpay-test') ||
     path.startsWith('/_next/') ||
     path.includes('.') ||
     path === '/favicon.ico';

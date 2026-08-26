@@ -54,6 +54,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   if (publish !== 'ALL') {
     where.publishStatus = publish;
+  } else {
+    where.publishStatus = {
+      not: 'ARCHIVED',
+    };
   }
 
   // 2. Build Sort order

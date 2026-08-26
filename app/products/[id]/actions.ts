@@ -113,7 +113,7 @@ export async function createReservation({
       return reservation;
     });
 
-    revalidatePath(`/products/${productId}`);
+    revalidatePath('/', 'layout');
     return { success: true, reservation: result };
   } catch (e: any) {
     return { error: e.message || 'Failed to create reservation.' };
@@ -187,7 +187,7 @@ export async function releaseReservation({ productId }: { productId: string }) {
       });
     });
 
-    revalidatePath(`/products/${productId}`);
+    revalidatePath('/', 'layout');
     return { success: true };
   } catch (e: any) {
     return { error: e.message || 'Failed to release reservation.' };
@@ -333,7 +333,7 @@ export async function markProductSold({
       return order;
     });
 
-    revalidatePath(`/products/${productId}`);
+    revalidatePath('/', 'layout');
     return { success: true, order: result };
   } catch (e: any) {
     return { error: e.message || 'Failed to complete transaction.' };
@@ -495,9 +495,7 @@ export async function toggleProductPublishStatusAction(
       },
     });
 
-    revalidatePath(`/products/${productId}`);
-    revalidatePath('/products');
-    revalidatePath('/shop');
+    revalidatePath('/', 'layout');
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to update publish status.' };
@@ -545,9 +543,7 @@ export async function deleteProductAction(productId: string) {
         },
       });
 
-      revalidatePath(`/products/${productId}`);
-      revalidatePath('/products');
-      revalidatePath('/shop');
+      revalidatePath('/', 'layout');
       return { success: true, archived: true };
     }
 
@@ -580,8 +576,7 @@ export async function deleteProductAction(productId: string) {
       },
     });
 
-    revalidatePath('/products');
-    revalidatePath('/shop');
+    revalidatePath('/', 'layout');
     return { success: true, hardDeleted: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to delete product.' };
