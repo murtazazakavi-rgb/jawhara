@@ -41,39 +41,67 @@ export async function generateProductSKU(
   const key = `PRODUCT:${catCode}:20${yearLastTwo}`;
   const prefix = `JWR-${catCode}-${yearLastTwo}-`;
 
-  // Concurrency-safe self-healing initializer
+  // 1. Find the highest existing sequence suffix in the product table
+  const latestProduct = await tx.product.findFirst({
+    where: {
+      productCode: {
+        startsWith: prefix,
+      },
+    },
+    orderBy: { productCode: 'desc' },
+    select: { productCode: true },
+  });
+
+  let maxSuffix = 0;
+  if (latestProduct) {
+    const parts = latestProduct.productCode.split('-');
+    const lastPart = parts[parts.length - 1];
+    if (lastPart) {
+      maxSuffix = parseInt(lastPart, 10);
+    }
+  }
+
+  // 2. Ensure sequence counter is at least maxSuffix
   const existingCounter = await tx.sequenceCounter.findUnique({
     where: { key },
   });
 
-  if (!existingCounter) {
-    const latestProduct = await tx.product.findFirst({
-      where: {
-        productCode: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: { productCode: 'desc' },
-      select: { productCode: true },
-    });
-
-    let startVal = 0;
-    if (latestProduct) {
-      const parts = latestProduct.productCode.split('-');
-      const lastPart = parts[parts.length - 1];
-      if (lastPart) {
-        startVal = Math.max(startVal, parseInt(lastPart, 10));
-      }
-    }
-
-    await tx.sequenceCounter.upsert({
+  let currentVal = maxSuffix;
+  if (existingCounter) {
+    currentVal = Math.max(existingCounter.value, maxSuffix);
+    await tx.sequenceCounter.update({
       where: { key },
-      update: {},
-      create: { key, value: startVal },
+      data: { value: currentVal },
+    });
+  } else {
+    await tx.sequenceCounter.create({
+      data: { key, value: currentVal },
     });
   }
 
-  return generateSequentialCode(tx, key, prefix, 4, 0);
+  // 3. Loop to guarantee we generate a unique SKU code
+  let attempts = 0;
+  while (attempts < 100) {
+    attempts++;
+    const counter = await tx.sequenceCounter.update({
+      where: { key },
+      data: { value: { increment: 1 } },
+    });
+
+    const paddedVal = counter.value.toString().padStart(4, '0');
+    const candidateCode = `${prefix}${paddedVal}`;
+
+    const duplicate = await tx.product.findUnique({
+      where: { productCode: candidateCode },
+      select: { id: true },
+    });
+
+    if (!duplicate) {
+      return candidateCode;
+    }
+  }
+
+  throw new Error('Failed to generate a unique SKU code after 100 attempts.');
 }
 
 /**
