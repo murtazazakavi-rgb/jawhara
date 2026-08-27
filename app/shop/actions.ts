@@ -185,7 +185,7 @@ export async function reserveProductAction(productId: string) {
       const holdSetting = await tx.systemSetting.findUnique({
         where: { key: 'reservationHoldMinutes' },
       });
-      const holdMinutes = parseInt(holdSetting?.value || '30', 10);
+      const holdMinutes = parseInt(holdSetting?.value || '20', 10);
       const expiresAt = new Date(Date.now() + holdMinutes * 60 * 1000);
 
       // 3. Atomic update product status

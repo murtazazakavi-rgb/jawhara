@@ -109,7 +109,7 @@ export default function ShopClient({
       return;
     }
 
-    if (!confirm('Place a temporary hold on this item for 30 minutes? Other users will see it as reserved.')) {
+    if (!confirm('Place a temporary hold on this item for 20 minutes? Other users will see it as reserved.')) {
       return;
     }
 

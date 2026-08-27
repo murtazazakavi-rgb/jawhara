@@ -8,6 +8,7 @@ import { getCurrentCustomer } from '@/lib/clientAuth';
 import { getCurrentUser } from '@/lib/auth';
 import ProductInquiryForm from './ProductInquiryForm';
 import HoldTimerBadge from './HoldTimerBadge';
+import ProductActionsClient from './ProductActionsClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,8 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
       reservations: {
         where: { status: 'ACTIVE' },
         select: {
+          id: true,
+          customerId: true,
           expiresAt: true,
         },
         take: 1,
@@ -241,29 +244,28 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
 
           {/* CTA Buttons */}
           <div className="mb-16">
-            {isSold ? (
-              <div className="bg-surface-container p-6 rounded-lg border border-outline-variant/20 text-center">
-                <p className="font-display text-on-surface text-lg mb-2">This piece has found its home.</p>
-                <p className="font-body-md text-on-surface-variant text-sm">
-                  Each Jawhara design is a handcrafted masterpiece. Inquire to create a bespoke piece inspired by this design.
-                </p>
-                <a
-                  href={waUrl}
-                  target="_blank"
-                  className="mt-4 bg-primary text-on-primary font-label-md py-3.5 px-6 rounded uppercase tracking-wider text-xs inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
-                >
-                  <span className="material-symbols-outlined text-sm">chat</span> Custom Inquiry
-                </a>
-              </div>
-            ) : (
-              <a
-                href={waUrl}
-                target="_blank"
-                className="w-full bg-primary text-on-primary font-label-md py-4 px-6 rounded uppercase tracking-wider text-xs hover:opacity-90 transition-opacity flex justify-center items-center gap-2 shadow-sm"
-              >
-                <span className="material-symbols-outlined">chat</span> Ask on WhatsApp
-              </a>
-            )}
+            <ProductActionsClient
+              productId={product.id}
+              productSlug={product.slug}
+              productName={product.name}
+              productPrice={Number(product.price)}
+              inventoryStatus={product.inventoryStatus}
+              isUnique={product.isUnique}
+              quantity={product.quantity}
+              customer={customer ? {
+                id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                mobile: customer.mobile,
+                normalizedMobile: customer.normalizedMobile
+              } : null}
+              activeReservation={product.reservations[0] ? {
+                id: product.reservations[0].id,
+                customerId: product.reservations[0].customerId,
+                expiresAt: product.reservations[0].expiresAt ? product.reservations[0].expiresAt.toISOString() : null
+              } : null}
+              waUrl={waUrl}
+            />
           </div>
 
           <ProductInquiryForm productId={product.id} isLoggedIn={!!customer} />

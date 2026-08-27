@@ -354,7 +354,7 @@ export default function SettingsClient({
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="number"
                   disabled={savingKey === 'reservationHoldMinutes'}
-                  value={getSettingVal('reservationHoldMinutes', '30')}
+                  value={getSettingVal('reservationHoldMinutes', '20')}
                   onChange={(e) => handleSaveSetting('reservationHoldMinutes', e.target.value)}
                 />
               </div>

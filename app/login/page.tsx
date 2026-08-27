@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { clientLoginAction, clientRegisterAndLoginAction } from '../shop/actions';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function ShopLoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   
   // Views: 'login' | 'register'
   const [view, setView] = useState<'login' | 'register'>('login');
@@ -35,7 +37,7 @@ export default function ShopLoginPage() {
       if (res.error) {
         setError(res.error);
       } else {
-        router.push('/');
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (err) {
@@ -74,7 +76,7 @@ export default function ShopLoginPage() {
       if (res.error) {
         setError(res.error);
       } else {
-        router.push('/');
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (err) {
@@ -284,5 +286,13 @@ export default function ShopLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ShopLoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface flex items-center justify-center text-outline">Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
