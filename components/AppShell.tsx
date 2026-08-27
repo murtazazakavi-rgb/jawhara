@@ -18,6 +18,7 @@ export default function AppShell({ children, user }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; title: string; message: string; type: 'order' | 'hold' }[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [recentNotifications, setRecentNotifications] = useState<{ id: string; title: string; message: string; date: Date }[]>([]);
@@ -158,7 +159,7 @@ export default function AppShell({ children, user }: AppShellProps) {
   };
 
   const navLinks = [
-    { name: 'Dashboard', href: '/', icon: 'home' },
+    { name: 'Dashboard', href: '/admin', icon: 'home' },
     { name: 'Products', href: '/products', icon: 'shopping_bag' },
     { name: 'Customers', href: '/customers', icon: 'group' },
     { name: 'WhatsApp', href: '/whatsapp', icon: 'chat' },
@@ -193,8 +194,8 @@ export default function AppShell({ children, user }: AppShellProps) {
           <nav className="hidden md:flex gap-8 items-center">
             {navLinks.map((link) => {
               const isActive =
-                link.href === '/'
-                  ? pathname === '/'
+                link.href === '/admin'
+                  ? pathname === '/admin'
                   : pathname.startsWith(link.href);
               return (
                 <Link
@@ -336,37 +337,191 @@ export default function AppShell({ children, user }: AppShellProps) {
       </main>
 
       {/* Mobile Bottom Navigation (Visible only on mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 flex justify-around py-2.5 z-40 shadow-lg px-2">
-        {navLinks.map((link) => {
-          const isActive =
-            link.href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(link.href);
-          return (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={`flex flex-col items-center gap-0.5 text-[9px] font-label-sm min-w-0 flex-1 ${
-                isActive ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-primary'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px] transition-transform active:scale-95">
-                {link.icon}
-              </span>
-              <span className="hidden sm:inline truncate max-w-[55px] text-center w-full">{link.name}</span>
-            </Link>
-          );
-        })}
-        <Link
-          href="/settings"
-          className={`flex flex-col items-center gap-0.5 text-[9px] font-label-sm min-w-0 flex-1 ${
-            pathname.startsWith('/settings') ? 'text-primary font-semibold' : 'text-on-surface-variant hover:text-primary'
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 flex justify-around py-3 z-40 shadow-lg px-2">
+        {/* Home */}
+        <Link 
+          href="/admin"
+          className={`flex flex-col items-center gap-1 text-[9px] font-label-sm min-w-0 flex-1 active:scale-95 transition-transform ${
+            pathname === '/admin' ? 'text-primary font-semibold' : 'text-on-surface-variant'
           }`}
         >
-          <span className="material-symbols-outlined text-[20px] transition-transform active:scale-95">settings</span>
-          <span className="hidden sm:inline truncate max-w-[55px] text-center w-full">Settings</span>
+          <span 
+            className="material-symbols-outlined text-[24px]"
+            style={{ fontVariationSettings: pathname === '/admin' ? "'FILL' 1" : undefined }}
+          >
+            home
+          </span>
+          <span className="font-semibold">Home</span>
         </Link>
+
+        {/* Products */}
+        <Link 
+          href="/products"
+          className={`flex flex-col items-center gap-1 text-[9px] font-label-sm min-w-0 flex-1 active:scale-95 transition-transform ${
+            pathname.startsWith('/products') ? 'text-primary font-semibold' : 'text-on-surface-variant'
+          }`}
+        >
+          <span 
+            className="material-symbols-outlined text-[24px]"
+            style={{ fontVariationSettings: pathname.startsWith('/products') ? "'FILL' 1" : undefined }}
+          >
+            shopping_bag
+          </span>
+          <span className="font-semibold">Products</span>
+        </Link>
+
+        {/* Orders */}
+        <Link 
+          href="/orders"
+          className={`flex flex-col items-center gap-1 text-[9px] font-label-sm min-w-0 flex-1 active:scale-95 transition-transform ${
+            pathname.startsWith('/orders') ? 'text-primary font-semibold' : 'text-on-surface-variant'
+          }`}
+        >
+          <span 
+            className="material-symbols-outlined text-[24px]"
+            style={{ fontVariationSettings: pathname.startsWith('/orders') ? "'FILL' 1" : undefined }}
+          >
+            inventory_2
+          </span>
+          <span className="font-semibold">Orders</span>
+        </Link>
+
+        {/* Clients */}
+        <Link 
+          href="/customers"
+          className={`flex flex-col items-center gap-1 text-[9px] font-label-sm min-w-0 flex-1 active:scale-95 transition-transform ${
+            pathname.startsWith('/customers') ? 'text-primary font-semibold' : 'text-on-surface-variant'
+          }`}
+        >
+          <span 
+            className="material-symbols-outlined text-[24px]"
+            style={{ fontVariationSettings: pathname.startsWith('/customers') ? "'FILL' 1" : undefined }}
+          >
+            group
+          </span>
+          <span className="font-semibold">Clients</span>
+        </Link>
+
+        {/* More */}
+        <button 
+          onClick={() => setShowMoreMenu(true)}
+          className={`flex flex-col items-center gap-1 text-[9px] font-label-sm min-w-0 flex-1 active:scale-95 transition-transform ${
+            showMoreMenu || ['/whatsapp', '/campaigns', '/automations', '/settings'].some(p => pathname.startsWith(p))
+              ? 'text-primary font-semibold' 
+              : 'text-on-surface-variant'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[24px]">
+            more_horiz
+          </span>
+          <span className="font-semibold">More</span>
+        </button>
       </nav>
+
+      {/* Mobile "More" Drawer Bottom Sheet */}
+      {showMoreMenu && (
+        <div className="md:hidden fixed inset-0 z-50 flex items-end">
+          {/* Backdrop Blur/Overlay */}
+          <div 
+            onClick={() => setShowMoreMenu(false)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
+          />
+
+          {/* Drawer Card */}
+          <div className="relative w-full bg-surface-container-lowest border-t border-outline-variant/30 rounded-t-2xl px-6 pb-8 pt-4 z-10 shadow-2xl flex flex-col gap-4 animate-pwa-slide-up max-h-[70vh] overflow-y-auto">
+            {/* Drag Handle */}
+            <div className="w-12 h-1 bg-outline-variant/60 rounded-full mx-auto mb-2" />
+
+            <div className="flex justify-between items-center pb-2 border-b border-outline-variant/20 mb-2">
+              <h3 className="font-display font-semibold text-headline-sm text-primary">Boutique Management</h3>
+              <button 
+                onClick={() => setShowMoreMenu(false)}
+                className="text-on-surface-variant hover:text-primary flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Menu List */}
+            <div className="grid grid-cols-1 gap-1">
+              {/* WhatsApp inbox */}
+              <Link
+                href="/whatsapp"
+                onClick={() => setShowMoreMenu(false)}
+                className={`flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm transition-all ${
+                  pathname.startsWith('/whatsapp') ? 'bg-primary-container/20 text-primary font-semibold' : 'text-on-surface-variant hover:bg-surface-container-low/30'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[22px]">chat</span>
+                WhatsApp Live Chat
+              </Link>
+
+              {/* Campaigns (if allowed) */}
+              {user && user.role !== 'SALES' && (
+                <Link
+                  href="/campaigns"
+                  onClick={() => setShowMoreMenu(false)}
+                  className={`flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm transition-all ${
+                    pathname.startsWith('/campaigns') ? 'bg-primary-container/20 text-primary font-semibold' : 'text-on-surface-variant hover:bg-surface-container-low/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[22px]">campaign</span>
+                  Campaigns Panel
+                </Link>
+              )}
+
+              {/* Automations (if allowed) */}
+              {user && user.role !== 'SALES' && (
+                <Link
+                  href="/automations"
+                  onClick={() => setShowMoreMenu(false)}
+                  className={`flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm transition-all ${
+                    pathname.startsWith('/automations') ? 'bg-primary-container/20 text-primary font-semibold' : 'text-on-surface-variant hover:bg-surface-container-low/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[22px]">settings_suggest</span>
+                  Automations
+                </Link>
+              )}
+
+              {/* Settings */}
+              <Link
+                href="/settings"
+                onClick={() => setShowMoreMenu(false)}
+                className={`flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm transition-all ${
+                  pathname.startsWith('/settings') ? 'bg-primary-container/20 text-primary font-semibold' : 'text-on-surface-variant hover:bg-surface-container-low/30'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[22px]">settings</span>
+                System Settings
+              </Link>
+
+              {/* Customer View toggle */}
+              <Link
+                href="/shop"
+                onClick={() => setShowMoreMenu(false)}
+                className="flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm text-on-surface-variant hover:bg-surface-container-low/30 border-t border-outline-variant/10 mt-2 pt-4"
+              >
+                <span className="material-symbols-outlined text-[22px] text-primary">shopping_basket</span>
+                Switch to Customer Lookbook
+              </Link>
+
+              {/* Sign Out */}
+              <button
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm text-error hover:bg-error-container/10 text-left cursor-pointer border-t border-outline-variant/10 mt-1 pt-3.5"
+              >
+                <span className="material-symbols-outlined text-[22px]">logout</span>
+                Sign Out / Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Real-time Toasts Float */}
       <div className="fixed bottom-20 md:bottom-6 right-6 flex flex-col gap-3 z-50 max-w-sm w-full pointer-events-none">
         {toasts.map((toast) => (
@@ -400,8 +555,15 @@ export default function AppShell({ children, user }: AppShellProps) {
           from { transform: translateY(1rem); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
+        @keyframes pwaSlideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
         .animate-slide-up {
           animation: slideUp 0.3s ease-out forwards;
+        }
+        .animate-pwa-slide-up {
+          animation: pwaSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       ` }} />
     </div>
