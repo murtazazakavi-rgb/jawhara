@@ -44,16 +44,6 @@ export default function BottomNav() {
         <span className="text-[9px] font-label-md uppercase tracking-wider font-semibold">My Holds</span>
       </Link>
 
-      <a 
-        href="https://wa.me/919876543210" 
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex flex-col items-center gap-1 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-      >
-        <span className="material-symbols-outlined text-[22px] font-medium font-filled text-success">chat</span>
-        <span className="text-[9px] font-label-md uppercase tracking-wider font-semibold">WhatsApp</span>
-      </a>
-
       <Link 
         href="/login" 
         className={`flex flex-col items-center gap-1 transition-colors cursor-pointer ${

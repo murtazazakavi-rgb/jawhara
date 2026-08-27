@@ -298,11 +298,11 @@ export default function ShopClient({
 
   // Logout handler
   const handleLogout = async () => {
-    // Delete cookie by calling clear endpoint or simple fetch
     try {
       const response = await fetch('/shop/api/logout', { method: 'POST' });
       if (response.ok) {
-        window.location.href = '/';
+        setActiveCustomer(null);
+        router.refresh();
       }
     } catch (err) {
       console.error(err);
@@ -501,34 +501,37 @@ export default function ShopClient({
               )}
             </button>
 
-            {customer ? (
+            {activeCustomer ? (
               <div className="flex items-center gap-4">
-                <div className="text-right hidden sm:block">
-                  <p className="font-label-md text-xs text-outline uppercase tracking-wider">Welcome Client</p>
-                  <p className="font-body-md text-sm text-on-surface font-semibold">{customer.name}</p>
+                <div className="text-right hidden md:block">
+                  <p className="text-[9px] font-label-md text-outline uppercase tracking-widest leading-none mb-0.5">Signed In As</p>
+                  <p className="font-semibold text-xs text-on-surface leading-tight">{activeCustomer.name}</p>
                 </div>
-                <Link
-                  href="/dashboard"
-                  className="px-3.5 py-1.5 bg-primary text-white text-[10px] font-label-md uppercase tracking-wider rounded-full hover:opacity-95 transition-opacity flex items-center gap-1 shadow-xs"
-                >
-                  <span className="material-symbols-outlined text-[13px]">dashboard</span>
-                  <span className="hidden sm:inline">My Dashboard</span>
-                  <span className="sm:hidden">Dashboard</span>
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="px-3.5 py-1.5 border border-outline/40 text-on-surface-variant text-[10px] font-label-md uppercase tracking-wider rounded-full hover:bg-surface-container-low transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-[13px]">logout</span>
-                  Sign Out
-                </button>
+                
+                <div className="flex items-center gap-2.5 border-l border-outline-variant/30 pl-4">
+                  <Link
+                    href="/dashboard"
+                    className="text-[10px] font-label-md uppercase tracking-wider text-primary hover:underline flex items-center gap-1.5 font-semibold"
+                  >
+                    <span className="material-symbols-outlined text-xs">dashboard</span>
+                    Dashboard
+                  </Link>
+                  <span className="text-outline-variant/50 text-xs">|</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-[10px] font-label-md uppercase tracking-wider text-error hover:underline flex items-center gap-1.5 font-semibold cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xs">logout</span>
+                    Sign Out
+                  </button>
+                </div>
               </div>
             ) : (
               <Link
                 href="/login"
-                className="px-5 py-2.5 bg-primary text-white text-xs font-label-md uppercase tracking-wider rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                className="px-5 py-2 bg-primary text-white text-[10px] font-label-md uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-sm font-semibold"
               >
-                <span className="material-symbols-outlined text-[16px]">account_circle</span>
+                <span className="material-symbols-outlined text-xs">account_circle</span>
                 Client Login
               </Link>
             )}
