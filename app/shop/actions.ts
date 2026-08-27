@@ -5,6 +5,7 @@ import { sendWhatsAppMessage } from '@/lib/integrations/whatsapp/provider';
 import { normalizePhoneNumber } from '@/lib/phone';
 import { setCustomerSession, getCurrentCustomer } from '@/lib/clientAuth';
 import { createPaymentLink } from '@/lib/integrations/payments/provider';
+import { emitBusinessEvent } from '@/lib/domain/automation';
 import { revalidatePath } from 'next/cache';
 import { Prisma, MessageDirection, MessageStatus, OrderStatus } from '@prisma/client';
 import Razorpay from 'razorpay';
@@ -245,6 +246,17 @@ export async function reserveProductAction(productId: string) {
 
       return reservation;
     });
+
+    // Emit business event for reservation creation
+    try {
+      await emitBusinessEvent('RESERVATION_CREATED', {
+        reservationId: result.id,
+        productId,
+        customerId: customer.id,
+      });
+    } catch (err) {
+      console.error('Failed to emit RESERVATION_CREATED event:', err);
+    }
 
     revalidatePath('/', 'layout');
     return { success: true, reservation: result };

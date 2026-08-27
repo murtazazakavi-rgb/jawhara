@@ -395,6 +395,66 @@ export default function SettingsClient({
                   onChange={(e) => handleSaveSetting('boutiquePhone', e.target.value)}
                 />
               </div>
+
+              {/* Admin Notification Routing */}
+              <div className="flex flex-col gap-2 md:col-span-2 border-t border-outline-variant/20 pt-6 mt-4">
+                <h3 className="font-display font-medium text-title-md text-primary mb-1">Admin Notification Routing</h3>
+                <p className="text-xs text-on-surface-variant">Specify where alerts should be sent when a payment is received or a hold request is placed.</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                  Admin Alert Email Address
+                </label>
+                <input
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
+                  type="email"
+                  placeholder="admin@maisonjawhara.com"
+                  disabled={savingKey === 'adminEmail'}
+                  value={getSettingVal('adminEmail', '')}
+                  onChange={(e) => handleSaveSetting('adminEmail', e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                  Admin WhatsApp Alert Number (with country code)
+                </label>
+                <input
+                  className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
+                  type="text"
+                  placeholder="e.g. 919876543210"
+                  disabled={savingKey === 'adminWhatsAppNumber'}
+                  value={getSettingVal('adminWhatsAppNumber', '')}
+                  onChange={(e) => handleSaveSetting('adminWhatsAppNumber', e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 md:col-span-2 pt-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-primary"
+                    disabled={savingKey === 'enableAdminEmailAlerts'}
+                    checked={getSettingVal('enableAdminEmailAlerts', 'true') === 'true'}
+                    onChange={(e) => handleSaveSetting('enableAdminEmailAlerts', e.target.checked ? 'true' : 'false')}
+                  />
+                  <span className="font-body-md text-sm text-on-surface">Enable Admin Email Alerts</span>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 md:col-span-2">
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-primary"
+                    disabled={savingKey === 'enableAdminWhatsAppAlerts'}
+                    checked={getSettingVal('enableAdminWhatsAppAlerts', 'true') === 'true'}
+                    onChange={(e) => handleSaveSetting('enableAdminWhatsAppAlerts', e.target.checked ? 'true' : 'false')}
+                  />
+                  <span className="font-body-md text-sm text-on-surface">Enable Admin WhatsApp Alerts</span>
+                </label>
+              </div>
             </div>
           </section>
         )}

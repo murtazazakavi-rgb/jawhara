@@ -44,6 +44,20 @@ export async function POST(request: Request) {
 
     if (expectedSignature !== razorpay_signature) {
       console.warn('Razorpay signature verification failed.');
+      // Find order to trigger failure notification
+      const pr = await prisma.paymentRequest.findUnique({
+        where: { providerPaymentLinkId: razorpay_order_id },
+      });
+      if (pr) {
+        try {
+          await emitBusinessEvent('PAYMENT_FAILED', {
+            orderId: pr.orderId,
+            errorMsg: 'Razorpay signature verification failed. Secure payment check mismatch.',
+          });
+        } catch (eventErr) {
+          console.error('Failed to emit PAYMENT_FAILED:', eventErr);
+        }
+      }
       return NextResponse.json({ error: 'Signature mismatch. Verification failed.' }, { status: 400 });
     }
 
@@ -191,6 +205,21 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error('Verify payment API error:', error);
+    try {
+      if (body?.razorpay_order_id) {
+        const pr = await prisma.paymentRequest.findUnique({
+          where: { providerPaymentLinkId: body.razorpay_order_id },
+        });
+        if (pr) {
+          await emitBusinessEvent('PAYMENT_FAILED', {
+            orderId: pr.orderId,
+            errorMsg: error.message || 'Internal Verification Error.',
+          });
+        }
+      }
+    } catch (eventErr) {
+      console.error('Failed to emit PAYMENT_FAILED on verify error:', eventErr);
+    }
     return NextResponse.json(
       { error: error.message || 'Internal Server Error.' },
       { status: 500 }
