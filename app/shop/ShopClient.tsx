@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { reserveProductAction, clientCheckoutAction } from './actions';
+import { reserveProductAction, clientCheckoutAction, clientCartCheckoutAction } from './actions';
 import Script from 'next/script';
 import CheckoutModal from '@/components/CheckoutModal';
 
@@ -50,6 +50,179 @@ export default function ShopClient({
   // Checkout Modal State
   const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  
+  // Shopping Cart States
+  const [cart, setCart] = useState<any[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCartCheckingOut, setIsCartCheckingOut] = useState(false);
+
+  useEffect(() => {
+    const loadCart = () => {
+      try {
+        const stored = localStorage.getItem('jawhara_cart');
+        if (stored) {
+          setCart(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    
+    loadCart();
+    
+    window.addEventListener('jawhara_cart_updated', loadCart);
+    return () => {
+      window.removeEventListener('jawhara_cart_updated', loadCart);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('checkoutCart') === 'true' && customer) {
+        setIsCartOpen(true);
+        router.replace('/', { scroll: false });
+      }
+    }
+  }, [customer, router]);
+
+  const handleAddToCart = (product: Product) => {
+    try {
+      const stored = localStorage.getItem('jawhara_cart');
+      const currentCart = stored ? JSON.parse(stored) : [];
+      if (currentCart.some((item: any) => item.id === product.id)) {
+        alert('This item is already in your cart.');
+        return;
+      }
+      currentCart.push({
+        id: product.id,
+        productCode: product.productCode,
+        name: product.name,
+        price: product.price,
+        slug: product.slug,
+        image: product.images[0]?.url || null,
+      });
+      localStorage.setItem('jawhara_cart', JSON.stringify(currentCart));
+      setCart(currentCart);
+      alert('Item added to cart!');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRemoveFromCart = (productId: string) => {
+    const updated = cart.filter(item => item.id !== productId);
+    localStorage.setItem('jawhara_cart', JSON.stringify(updated));
+    setCart(updated);
+  };
+
+  const handleCartCheckout = async () => {
+    if (!customer) {
+      alert('Please sign in or register to complete your purchase.');
+      router.push(`/login?redirect=/?checkoutCart=true`);
+      return;
+    }
+
+    if (cart.length === 0) return;
+    
+    setIsCartCheckingOut(true);
+    try {
+      const productIds = cart.map(item => item.id);
+      const checkoutRes = await clientCartCheckoutAction({ productIds });
+      
+      if (checkoutRes.error) {
+        alert(checkoutRes.error);
+        setIsCartCheckingOut(false);
+      } else if (checkoutRes.useStandardCheckout) {
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          alert('Razorpay Key ID is missing in environment variables.');
+          setIsCartCheckingOut(false);
+          return;
+        }
+        const options = {
+          key: keyId,
+          amount: checkoutRes.amount,
+          currency: checkoutRes.currency || 'INR',
+          name: 'Jawhara',
+          description: `Payment for Order ${checkoutRes.orderNumber}`,
+          order_id: checkoutRes.razorpayOrderId,
+          handler: async function (response: any) {
+            try {
+              const verifyRes = await fetch('/api/verify-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok) {
+                throw new Error(verifyData.error || 'Payment signature verification failed.');
+              }
+
+              // Clear cart on success
+              localStorage.removeItem('jawhara_cart');
+              setCart([]);
+              alert('Payment successful! Your order has been placed and is being processed.');
+              if (verifyData.orderId) {
+                router.push(`/orders/${verifyData.orderId}/receipt`);
+              } else {
+                router.refresh();
+              }
+            } catch (verifyErr: any) {
+              console.error(verifyErr);
+              alert(`Verification Error: ${verifyErr.message}`);
+            } finally {
+              setIsCartCheckingOut(false);
+            }
+          },
+          prefill: {
+            name: checkoutRes.customerName,
+            email: checkoutRes.customerEmail || undefined,
+            contact: checkoutRes.customerMobile || undefined,
+          },
+          theme: {
+            color: '#755566', // Mauve
+          },
+          modal: {
+            ondismiss: function () {
+              setIsCartCheckingOut(false);
+            }
+          }
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (response: any) {
+          alert(`Payment failed: ${response.error.description}`);
+          setIsCartCheckingOut(false);
+        });
+        rzp.open();
+      } else if (checkoutRes.paymentUrl) {
+        window.open(checkoutRes.paymentUrl, '_blank');
+        localStorage.removeItem('jawhara_cart');
+        setCart([]);
+        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        router.refresh();
+        setIsCartCheckingOut(false);
+      } else {
+        localStorage.removeItem('jawhara_cart');
+        setCart([]);
+        alert('Checkout initiated successfully.');
+        router.refresh();
+        setIsCartCheckingOut(false);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to initiate checkout.');
+      setIsCartCheckingOut(false);
+    }
+  };
   
   // Real-time reservation countdown timers
   const [timers, setTimers] = useState<Record<string, string>>({});
@@ -203,7 +376,11 @@ export default function ShopClient({
               }
 
               alert('Payment successful! Your order has been placed and is being processed.');
-              router.refresh();
+              if (verifyData.orderId) {
+                router.push(`/orders/${verifyData.orderId}/receipt`);
+              } else {
+                router.refresh();
+              }
             } catch (verifyErr: any) {
               console.error(verifyErr);
               alert(`Verification Error: ${verifyErr.message}`);
@@ -287,6 +464,19 @@ export default function ShopClient({
           </Link>
 
           <div className="flex items-center gap-4">
+            {/* Cart Button */}
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2 text-primary hover:opacity-85 transition-opacity cursor-pointer flex items-center justify-center border border-outline-variant/30 rounded-full"
+            >
+              <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+              {cart.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-error text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-fade-in shadow-sm">
+                  {cart.length}
+                </span>
+              )}
+            </button>
+
             {customer ? (
               <div className="flex items-center gap-4">
                 <div className="text-right hidden sm:block">
@@ -468,17 +658,26 @@ export default function ShopClient({
                       </div>
                       
                       {isAvailable ? (
-                        <div className="flex gap-1.5 w-full">
-                          <button
-                            onClick={() => triggerBuyNow(p)}
-                            className="flex-grow bg-primary text-white text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:opacity-90 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
-                          >
-                            <span className="material-symbols-outlined text-[11px]">shopping_cart</span>
-                            Buy Now
-                          </button>
+                        <div className="flex flex-col gap-1.5 w-full">
+                          <div className="flex gap-1.5 w-full">
+                            <button
+                              onClick={() => triggerBuyNow(p)}
+                              className="flex-grow bg-primary text-white text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:opacity-90 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                            >
+                              <span className="material-symbols-outlined text-[11px]">shopping_cart</span>
+                              Buy Now
+                            </button>
+                            <button
+                              onClick={() => handleAddToCart(p)}
+                              className="flex-grow border border-primary/60 text-primary text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:bg-primary/5 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                            >
+                              <span className="material-symbols-outlined text-[11px]">add_shopping_cart</span>
+                              Add Cart
+                            </button>
+                          </div>
                           <button
                             onClick={() => handleReserve(p.id)}
-                            className="flex-grow border border-primary/60 text-primary text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:bg-primary/5 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                            className="w-full border border-outline/40 text-on-surface-variant text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:bg-surface-container-low cursor-pointer flex items-center justify-center gap-1 z-20 transition-all"
                           >
                             <span className="material-symbols-outlined text-[11px]">lock</span>
                             Hold (20m)
@@ -526,6 +725,131 @@ export default function ShopClient({
         }}
         price={checkoutProduct?.price || 0}
       />
+
+      {/* Shopping Cart Drawer Sidebar */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-55 flex justify-end">
+          {/* Backdrop */}
+          <div
+            onClick={() => setIsCartOpen(false)}
+            className="absolute inset-0 bg-black/45 backdrop-blur-xs cursor-pointer transition-opacity"
+          ></div>
+
+          {/* Drawer Body */}
+          <div className="relative w-full max-w-md bg-surface-container-lowest h-full shadow-2xl flex flex-col z-10 border-l border-outline-variant/30 animate-slide-in-right">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-low">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-xl">shopping_bag</span>
+                <h3 className="font-display font-semibold text-lg text-primary uppercase tracking-wider">My Shopping Cart</h3>
+              </div>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer flex items-center justify-center p-1 rounded-full border border-outline-variant/20"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            {/* Cart Items List */}
+            <div className="flex-grow overflow-y-auto p-5 space-y-4">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-3">
+                  <span className="material-symbols-outlined text-outline/30 text-5xl">shopping_cart_checkout</span>
+                  <p className="font-body-md text-on-surface-variant italic text-sm">Your cart is empty.</p>
+                  <button
+                    onClick={() => setIsCartOpen(false)}
+                    className="bg-primary text-white text-xs font-label-md uppercase tracking-wider px-4 py-2 rounded-lg hover:opacity-90"
+                  >
+                    Start Adding Pieces
+                  </button>
+                </div>
+              ) : (
+                cart.map((item) => {
+                  const img = item.image || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150';
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex gap-4 p-3 bg-surface-container-low border border-outline-variant/20 rounded-xl relative overflow-hidden"
+                    >
+                      <Link
+                        href={`/p/${item.slug}`}
+                        onClick={() => setIsCartOpen(false)}
+                        className="w-16 h-20 bg-surface-container-low rounded-lg overflow-hidden shrink-0 block hover:opacity-90"
+                      >
+                        <img src={img} alt={item.name} className="w-full h-full object-cover" />
+                      </Link>
+
+                      <div className="flex-grow flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start gap-2">
+                            <Link
+                              href={`/p/${item.slug}`}
+                              onClick={() => setIsCartOpen(false)}
+                              className="hover:underline hover:text-primary"
+                            >
+                              <h4 className="font-label-md text-xs text-on-surface font-semibold line-clamp-1">
+                                {item.name}
+                              </h4>
+                            </Link>
+                            <span className="font-mono text-[9px] text-outline shrink-0">{item.productCode}</span>
+                          </div>
+                          <p className="font-headline-sm text-primary text-xs font-semibold mt-1">
+                            ₹{item.price.toLocaleString('en-IN')}
+                          </p>
+                        </div>
+
+                        <div className="flex justify-end mt-2">
+                          <button
+                            onClick={() => handleRemoveFromCart(item.id)}
+                            className="text-[9px] font-label-md text-error hover:underline uppercase tracking-wider cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Cart Footer */}
+            {cart.length > 0 && (
+              <div className="p-5 border-t border-outline-variant/20 bg-surface-container-low space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-label-md text-xs text-outline uppercase tracking-wider">Subtotal:</span>
+                  <span className="font-headline-lg text-primary text-base font-bold">
+                    ₹{cart.reduce((sum, item) => sum + item.price, 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                
+                <p className="text-[10px] text-on-surface-variant leading-relaxed italic">
+                  Note: Pieces in the cart are not held until checkout is initiated. Items marked "On Hold" or "Sold" in inventory cannot be checked out.
+                </p>
+
+                <button
+                  onClick={handleCartCheckout}
+                  disabled={isCartCheckingOut}
+                  className="w-full bg-primary text-white font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:opacity-95 transition-opacity flex justify-center items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 font-semibold"
+                >
+                  {isCartCheckingOut ? (
+                    <>
+                      <span className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></span>
+                      Initiating Payment...
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[13px]">payments</span>
+                      Checkout Cart (₹{cart.reduce((sum, item) => sum + item.price, 0).toLocaleString('en-IN')})
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

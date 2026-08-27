@@ -278,6 +278,8 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
                 expiresAt: product.reservations[0].expiresAt ? product.reservations[0].expiresAt.toISOString() : null
               } : null}
               waUrl={waUrl}
+              productCode={product.productCode}
+              productImage={product.images[0]?.url || null}
             />
           </div>
 

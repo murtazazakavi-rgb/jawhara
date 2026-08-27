@@ -31,6 +31,8 @@ interface ProductActionsClientProps {
     expiresAt: string | null;
   } | null;
   waUrl: string;
+  productCode?: string;
+  productImage?: string | null;
 }
 
 export default function ProductActionsClient({
@@ -44,6 +46,8 @@ export default function ProductActionsClient({
   customer,
   activeReservation,
   waUrl,
+  productCode = '',
+  productImage = null,
 }: ProductActionsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -74,6 +78,31 @@ export default function ProductActionsClient({
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [inventoryStatus, activeReservation, router]);
+
+  // Cart handler
+  const handleAddToCart = () => {
+    try {
+      const currentCart = JSON.parse(localStorage.getItem('jawhara_cart') || '[]');
+      if (currentCart.some((item: any) => item.id === productId)) {
+        alert('This item is already in your cart.');
+        return;
+      }
+      currentCart.push({
+        id: productId,
+        productCode,
+        name: productName,
+        price: productPrice,
+        slug: productSlug,
+        image: productImage
+      });
+      localStorage.setItem('jawhara_cart', JSON.stringify(currentCart));
+      alert('Item added to cart!');
+      window.dispatchEvent(new Event('jawhara_cart_updated'));
+    } catch (e) {
+      console.error(e);
+      alert('Failed to add item to cart.');
+    }
+  };
 
   // Reservation handler
   const handleReserve = async () => {
@@ -166,7 +195,11 @@ export default function ProductActionsClient({
               }
 
               alert('Payment successful! Your order has been placed and is being processed.');
-              router.refresh();
+              if (verifyData.orderId) {
+                router.push(`/orders/${verifyData.orderId}/receipt`);
+              } else {
+                router.refresh();
+              }
             } catch (verifyErr: any) {
               console.error(verifyErr);
               alert(`Verification Error: ${verifyErr.message}`);
@@ -269,7 +302,11 @@ export default function ProductActionsClient({
               }
 
               alert('Payment successful! Your order has been placed and is being processed.');
-              router.refresh();
+              if (verifyData.orderId) {
+                router.push(`/orders/${verifyData.orderId}/receipt`);
+              } else {
+                router.refresh();
+              }
             } catch (verifyErr: any) {
               console.error(verifyErr);
               alert(`Verification Error: ${verifyErr.message}`);
@@ -375,6 +412,14 @@ export default function ProductActionsClient({
           >
             <span className="material-symbols-outlined text-[13px]">shopping_cart</span>
             Buy Now
+          </button>
+          <button
+            onClick={handleAddToCart}
+            disabled={isPending}
+            className="w-full border border-primary text-primary font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:bg-primary/5 transition-colors flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 font-semibold"
+          >
+            <span className="material-symbols-outlined text-[13px]">add_shopping_cart</span>
+            Add to Cart
           </button>
           <button
             onClick={handleReserve}

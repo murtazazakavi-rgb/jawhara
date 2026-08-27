@@ -286,7 +286,11 @@ export default function ShopDashboardClient({
               }
 
               alert('Payment successful! Your order has been placed and is being processed.');
-              router.refresh();
+              if (verifyData.orderId) {
+                router.push(`/orders/${verifyData.orderId}/receipt`);
+              } else {
+                router.refresh();
+              }
             } catch (verifyErr: any) {
               console.error(verifyErr);
               alert(`Verification Error: ${verifyErr.message}`);

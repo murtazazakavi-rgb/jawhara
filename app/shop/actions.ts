@@ -620,3 +620,221 @@ export async function clientCheckoutAction(data: { reservationId: string; notes?
     return { error: errorMsg };
   }
 }
+
+/**
+ * Initiates the checkout payment process for a list of products in the cart.
+ */
+export async function clientCartCheckoutAction(data: { productIds: string[]; notes?: string }) {
+  const customer = await getCurrentCustomer();
+  if (!customer) {
+    return { error: 'Authentication required. Please log in first.' };
+  }
+
+  if (!data.productIds || data.productIds.length === 0) {
+    return { error: 'Cart is empty.' };
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Fetch and validate all products
+      const products = await tx.product.findMany({
+        where: { id: { in: data.productIds } },
+      });
+
+      if (products.length !== data.productIds.length) {
+        throw new Error('Some products in your cart could not be found.');
+      }
+
+      // Check availability of each product
+      for (const product of products) {
+        if (product.publishStatus !== 'PUBLISHED') {
+          throw new Error(`Product "${product.name}" is not available in the public catalog.`);
+        }
+        if (product.isUnique && product.inventoryStatus !== 'AVAILABLE') {
+          throw new Error(`Product "${product.name}" is no longer available.`);
+        }
+        if (!product.isUnique && product.quantity <= 0) {
+          throw new Error(`Product "${product.name}" is out of stock.`);
+        }
+      }
+
+      // 2. Fetch reservation hold duration setting
+      const holdSetting = await tx.systemSetting.findUnique({
+        where: { key: 'reservationHoldMinutes' },
+      });
+      const holdMinutes = parseInt(holdSetting?.value || '20', 10);
+      const expiresAt = new Date(Date.now() + holdMinutes * 60 * 1000);
+
+      // 3. Atomically update product inventory and create reservations
+      for (const product of products) {
+        if (product.isUnique) {
+          const updateResult = await tx.product.updateMany({
+            where: {
+              id: product.id,
+              inventoryStatus: 'AVAILABLE',
+              isUnique: true,
+            },
+            data: {
+              inventoryStatus: 'RESERVED',
+            },
+          });
+
+          if (updateResult.count === 0) {
+            throw new Error(`Product "${product.name}" was just reserved by another customer.`);
+          }
+        } else {
+          const updateResult = await tx.product.updateMany({
+            where: {
+              id: product.id,
+              isUnique: false,
+              quantity: { gte: 1 },
+            },
+            data: {
+              quantity: { decrement: 1 },
+            },
+          });
+
+          if (updateResult.count === 0) {
+            throw new Error(`Product "${product.name}" is out of stock.`);
+          }
+        }
+
+        // Create reservation structure
+        await tx.reservation.create({
+          data: {
+            productId: product.id,
+            customerId: customer.id,
+            reservedBy: `${customer.name} (Website Cart)`,
+            status: 'ACTIVE',
+            expiresAt,
+            quantity: 1,
+          },
+        });
+
+        // Log Customer Interaction
+        await tx.customerInteraction.create({
+          data: {
+            customerId: customer.id,
+            productId: product.id,
+            type: 'RESERVED',
+            metadata: { channel: 'CLIENT_PORTAL_CART', durationMinutes: holdMinutes },
+          },
+        });
+      }
+
+      // 4. Create the Order
+      const count = await tx.order.count();
+      const orderNumber = `JWR-ORD-${(count + 1).toString().padStart(4, '0')}`;
+      const totalAmount = products.reduce((sum, p) => sum + Number(p.price), 0);
+
+      const order = await tx.order.create({
+        data: {
+          customerId: customer.id,
+          orderNumber,
+          subtotal: new Prisma.Decimal(totalAmount),
+          total: new Prisma.Decimal(totalAmount),
+          status: OrderStatus.PENDING,
+          paymentStatus: 'UNPAID',
+          notes: data.notes || null,
+          orderItems: {
+            create: products.map((product) => ({
+              productId: product.id,
+              quantity: 1,
+              unitPrice: product.price,
+              finalPrice: product.price,
+            })),
+          },
+        },
+      });
+
+      return { order, totalAmount };
+    });
+
+    const { order, totalAmount } = result;
+
+    const provider = process.env.PAYMENT_PROVIDER || 'mock';
+    if (provider === 'razorpay') {
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+      if (!keyId || !keySecret) {
+        return { error: 'Razorpay configuration error.' };
+      }
+
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+
+      const amountInPaise = Math.round(totalAmount * 100);
+      const rzpOrder = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: order.orderNumber,
+      });
+
+      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
+      await prisma.paymentRequest.create({
+        data: {
+          orderId: order.id,
+          provider: 'RAZORPAY',
+          providerPaymentLinkId: rzpOrder.id,
+          shortUrl: '',
+          amount: order.total,
+          status: 'CREATED',
+          expiresAt,
+        },
+      });
+
+      revalidatePath('/', 'layout');
+      return {
+        success: true,
+        useStandardCheckout: true,
+        orderId: order.id,
+        razorpayOrderId: rzpOrder.id,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        orderNumber: order.orderNumber,
+        customerName: customer.name,
+        customerEmail: customer.email || '',
+        customerMobile: customer.normalizedMobile || customer.mobile || '',
+      };
+    } else {
+      // Generate Payment Link
+      const res = await createPaymentLink({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        amount: totalAmount,
+        customerName: customer.name,
+        customerMobile: customer.normalizedMobile || customer.mobile || '',
+        customerEmail: customer.email || undefined,
+        expiresInMinutes: 120,
+      });
+
+      if (!res.success) {
+        return { error: res.error || 'Failed to generate checkout payment link.' };
+      }
+
+      // Store PaymentRequest record
+      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
+      await prisma.paymentRequest.create({
+        data: {
+          orderId: order.id,
+          provider: 'RAZORPAY',
+          providerPaymentLinkId: res.providerPaymentLinkId || '',
+          shortUrl: res.shortUrl || '',
+          amount: order.total,
+          status: 'CREATED',
+          expiresAt,
+        },
+      });
+
+      revalidatePath('/', 'layout');
+      return { success: true, paymentUrl: res.shortUrl, orderId: order.id };
+    }
+  } catch (error: any) {
+    console.error('clientCartCheckoutAction error:', error);
+    return { error: error.message || 'Failed to complete cart checkout.' };
+  }
+}
+

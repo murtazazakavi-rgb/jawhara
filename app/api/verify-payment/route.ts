@@ -184,7 +184,11 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Payment verified successfully.' });
+    return NextResponse.json({
+      success: true,
+      message: 'Payment verified successfully.',
+      orderId: paymentRequest ? paymentRequest.order.id : null,
+    });
   } catch (error: any) {
     console.error('Verify payment API error:', error);
     return NextResponse.json(
