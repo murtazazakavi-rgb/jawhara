@@ -302,10 +302,10 @@ export default function ShopClient({
       const response = await fetch('/shop/api/logout', { method: 'POST' });
       if (response.ok) {
         setActiveCustomer(null);
-        router.refresh();
+        window.location.href = '/';
       }
     } catch (err) {
-      console.error(err);
+      console.error('Logout error:', err);
     }
   };
 
