@@ -234,14 +234,22 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           {(products as any[]).map((product) => {
             const mainImg = product.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300';
             
-            // Status color helper
-            let statusClass = 'bg-surface-container-high text-on-surface-variant';
-            if (product.inventoryStatus === 'AVAILABLE') {
-              statusClass = 'bg-primary-container/10 text-primary-container';
-            } else if (product.inventoryStatus === 'RESERVED') {
-              statusClass = 'bg-secondary-container text-on-secondary-container';
-            } else if (product.inventoryStatus === 'SOLD') {
-              statusClass = 'bg-outline-variant/30 text-on-surface-variant';
+            // Determine user-friendly status details
+            let statusLabel = 'Available';
+            let statusClass = 'bg-success/10 text-success border-success/20';
+
+            const isSoldOut = 
+              product.inventoryStatus === 'SOLD' || 
+              product.inventoryStatus === 'DELIVERED' || 
+              product.inventoryStatus === 'DISPATCHED' ||
+              (product.quantity <= 0);
+
+            if (product.inventoryStatus === 'RESERVED') {
+              statusLabel = 'On Hold';
+              statusClass = 'bg-warning/10 text-warning border-warning/20';
+            } else if (isSoldOut) {
+              statusLabel = 'Sold Out';
+              statusClass = 'bg-error/10 text-error border-error/20';
             }
 
             return (
@@ -259,13 +267,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   />
                   
                   {/* Category overlay */}
-                  <span className="absolute top-3 left-3 bg-surface/80 backdrop-blur-sm text-[9px] font-label-sm px-2 py-0.5 rounded-full uppercase tracking-wider text-on-surface border border-outline-variant/10">
+                  <span className="absolute top-3 left-3 bg-surface/85 backdrop-blur-sm text-[9px] font-label-sm px-2 py-0.5 rounded-full uppercase tracking-wider text-on-surface border border-outline-variant/10">
                     {product.category.name}
                   </span>
 
                   {/* Status Badge */}
-                  <span className={`absolute top-3 right-3 text-[10px] font-label-sm px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-current/10 ${statusClass}`}>
-                    {product.inventoryStatus}
+                  <span className={`absolute top-3 right-3 text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${statusClass}`}>
+                    {statusLabel}
                   </span>
                 </div>
 
@@ -280,11 +288,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     </h3>
                   </div>
                   <div className="flex justify-between items-center mt-2 pt-2 border-t border-outline-variant/10">
-                    <span className="font-headline-md text-sm md:text-base text-primary">
+                    <span className="font-headline-md text-sm md:text-base text-primary font-bold">
                       ₹{Number(product.price).toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] font-label-sm text-on-surface-variant">
-                      Qty: {product.quantity}
+                    <span className="text-[10px] font-medium text-on-surface-variant flex items-center gap-1">
+                      {product.isUnique ? (
+                        <span className="bg-primary/5 text-primary text-[9px] font-bold px-1.5 py-0.5 rounded border border-primary/10">Unique</span>
+                      ) : (
+                        `Stock: ${product.quantity}`
+                      )}
                     </span>
                   </div>
                 </div>

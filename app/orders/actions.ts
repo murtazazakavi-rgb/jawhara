@@ -23,19 +23,17 @@ export async function updateOrderStatus({
       data: { status: status as any },
     });
 
-    // If order is dispatched or delivered, we update the product inventory status too!
+    // If order is returned, we restore the stock and mark it as AVAILABLE
     const orderItem = await prisma.orderItem.findFirst({
       where: { orderId },
     });
-    if (orderItem) {
-      let invStatus: InventoryStatus = InventoryStatus.SOLD;
-      if (status === 'DISPATCHED') invStatus = InventoryStatus.DISPATCHED;
-      if (status === 'DELIVERED') invStatus = InventoryStatus.DELIVERED;
-      if (status === 'RETURNED') invStatus = InventoryStatus.AVAILABLE;
-
+    if (orderItem && status === 'RETURNED') {
       await prisma.product.update({
         where: { id: orderItem.productId },
-        data: { inventoryStatus: invStatus },
+        data: { 
+          quantity: { increment: orderItem.quantity },
+          inventoryStatus: 'AVAILABLE' 
+        },
       });
     }
 
