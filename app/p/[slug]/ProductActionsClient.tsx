@@ -122,7 +122,7 @@ export default function ProductActionsClient({
 
   // Reservation handler
   const handleReserve = async () => {
-    if (!customer) {
+    if (!activeCustomer) {
       alert('Please sign in or register to place this item on hold.');
       router.push(`/login?redirect=/p/${productSlug}`);
       return;
@@ -350,7 +350,7 @@ export default function ProductActionsClient({
 
   const isSold = inventoryStatus === 'SOLD' || (!isUnique && quantity <= 0);
   const isReserved = inventoryStatus === 'RESERVED';
-  const isReservedByMe = isReserved && activeReservation && customer && activeReservation.customerId === customer.id;
+  const isReservedByMe = isReserved && activeReservation && activeCustomer && activeReservation.customerId === activeCustomer.id;
 
   return (
     <div className="w-full font-body-md">
