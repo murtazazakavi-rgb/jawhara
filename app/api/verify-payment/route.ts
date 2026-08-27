@@ -12,8 +12,8 @@ import {
 } from '@prisma/client';
 
 export async function POST(request: Request) {
+  let body: any = null;
   try {
-    let body;
     try {
       body = await request.json();
     } catch (e) {
