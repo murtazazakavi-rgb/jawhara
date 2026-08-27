@@ -583,6 +583,22 @@ export async function clientCheckoutAction(data: { reservationId: string }) {
     }
   } catch (error: any) {
     console.error('clientCheckoutAction error:', error);
-    return { error: error.message || 'Failed to create order checkout.' };
+    let errorMsg = 'Failed to create order checkout.';
+    if (error) {
+      if (typeof error === 'string') {
+        errorMsg = error;
+      } else if (error.error && typeof error.error === 'object' && error.error.description) {
+        errorMsg = error.error.description;
+      } else if (error.message) {
+        errorMsg = error.message;
+      } else {
+        try {
+          errorMsg = JSON.stringify(error);
+        } catch (_) {
+          errorMsg = String(error);
+        }
+      }
+    }
+    return { error: errorMsg };
   }
 }
