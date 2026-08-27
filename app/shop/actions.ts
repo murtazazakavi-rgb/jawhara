@@ -315,6 +315,23 @@ export async function cancelReservationAction(reservationId: string) {
       });
 
       for (const order of pendingOrders) {
+        // A. Delete related transactions
+        await tx.paymentTransaction.deleteMany({
+          where: { orderId: order.id },
+        });
+        // B. Delete related payments (payment requests)
+        await tx.paymentRequest.deleteMany({
+          where: { orderId: order.id },
+        });
+        // C. Delete related order items
+        await tx.orderItem.deleteMany({
+          where: { orderId: order.id },
+        });
+        // D. Delete related shipments
+        await tx.shipment.deleteMany({
+          where: { orderId: order.id },
+        });
+        // E. Finally delete order
         await tx.order.delete({
           where: { id: order.id },
         });

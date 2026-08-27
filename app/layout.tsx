@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "Jawhara OS",
@@ -44,7 +45,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-surface text-on-surface">{children}</body>
+      <body className="min-h-full flex flex-col bg-surface text-on-surface pb-16 md:pb-0">
+        {children}
+        <BottomNav />
+      </body>
     </html>
   );
 }

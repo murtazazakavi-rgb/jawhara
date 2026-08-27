@@ -286,86 +286,86 @@ export default function ProductActionsClient({
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
       {isSold ? (
-        <div className="bg-surface-container p-6 rounded-lg border border-outline-variant/20 text-center">
-          <p className="font-display text-on-surface text-lg mb-2">This piece has found its home.</p>
-          <p className="font-body-md text-on-surface-variant text-sm">
+        <div className="bg-surface-container p-6 rounded-2xl border border-outline-variant/20 text-center">
+          <p className="font-display text-on-surface text-base mb-2">This piece has found its home.</p>
+          <p className="font-body-md text-on-surface-variant text-xs leading-relaxed">
             Each Jawhara design is a handcrafted masterpiece. Inquire to create a bespoke piece inspired by this design.
           </p>
           <a
             href={waUrl}
             target="_blank"
-            className="mt-4 bg-primary text-on-primary font-label-md py-3.5 px-6 rounded uppercase tracking-wider text-xs inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
+            className="mt-4 bg-primary text-on-primary font-label-md py-2.5 px-5 rounded-full uppercase tracking-wider text-[10px] inline-flex items-center gap-1.5 hover:opacity-95 transition-opacity cursor-pointer shadow-xs"
           >
-            <span className="material-symbols-outlined text-sm">chat</span> Custom Inquiry
+            <span className="material-symbols-outlined text-[13px]">chat</span> Custom Inquiry
           </a>
         </div>
       ) : isReservedByMe ? (
-        <div className="bg-success/5 border border-success/20 p-6 rounded-xl space-y-4 shadow-sm">
-          <div className="text-success font-semibold flex items-center gap-2 text-sm justify-center">
-            <span className="material-symbols-outlined text-base">lock</span>
-            You have placed this piece on hold ({timerText} remaining)
+        <div className="bg-success/5 border border-success/20 p-6 rounded-2xl space-y-4 shadow-xs text-center">
+          <div className="text-success font-semibold flex items-center gap-1.5 text-xs justify-center uppercase tracking-wider">
+            <span className="material-symbols-outlined text-sm">lock</span>
+            You have placed this piece on hold ({timerText})
           </div>
-          <p className="text-xs text-on-surface-variant text-center leading-relaxed">
+          <p className="text-[11px] text-on-surface-variant leading-relaxed">
             Complete your checkout to purchase. If the timer expires, the hold will release back to general inventory.
           </p>
           <div className="flex flex-col gap-2.5">
             <button
               onClick={handleCheckout}
               disabled={isPending}
-              className="w-full bg-primary text-on-primary font-label-md py-4 px-6 rounded uppercase tracking-wider text-xs hover:opacity-90 transition-opacity flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+              className="w-full bg-primary text-on-primary font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:opacity-95 transition-opacity flex justify-center items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 font-semibold"
             >
               {isPending ? 'Processing...' : 'Buy Now (Complete Purchase)'}
             </button>
             <button
               onClick={handleCancelHold}
               disabled={isPending}
-              className="w-full border border-outline text-on-surface-variant font-label-md py-3 px-6 rounded uppercase tracking-wider text-xs hover:bg-surface-container-low transition-colors flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full border border-outline/50 text-on-surface-variant font-label-md py-2.5 px-5 rounded-full uppercase tracking-wider text-[10px] hover:bg-surface-container-low transition-colors flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               Cancel Hold & Release Stock
             </button>
           </div>
         </div>
       ) : isReserved ? (
-        <div className="bg-surface-container/50 p-6 rounded-lg border border-outline-variant/20 text-center space-y-4">
-          <div className="text-error font-semibold flex items-center justify-center gap-2 text-sm">
-            <span className="material-symbols-outlined text-base">schedule</span>
+        <div className="bg-surface-container/50 p-6 rounded-2xl border border-outline-variant/20 text-center space-y-4">
+          <div className="text-error font-semibold flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider">
+            <span className="material-symbols-outlined text-sm">schedule</span>
             On Hold (Reserved by another client: {timerText})
           </div>
-          <p className="text-xs text-on-surface-variant leading-relaxed">
+          <p className="text-[11px] text-on-surface-variant leading-relaxed">
             This piece is currently on hold. Holds expire automatically after 20 minutes if unpaid. You can inquire about this piece via WhatsApp.
           </p>
           <a
             href={waUrl}
             target="_blank"
-            className="w-full bg-primary text-on-primary font-label-md py-3.5 px-6 rounded uppercase tracking-wider text-xs inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            className="w-full bg-primary text-on-primary font-label-md py-2.5 px-5 rounded-full uppercase tracking-wider text-[10px] inline-flex items-center justify-center gap-1.5 hover:opacity-95 transition-opacity cursor-pointer shadow-xs"
           >
-            <span className="material-symbols-outlined text-sm">chat</span> Inquire on WhatsApp
+            <span className="material-symbols-outlined text-[13px]">chat</span> Inquire on WhatsApp
           </a>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <button
             onClick={handleBuyNowDirect}
             disabled={isPending}
-            className="w-full bg-primary text-on-primary font-label-md py-4 px-6 rounded uppercase tracking-wider text-xs hover:opacity-90 transition-opacity flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+            className="w-full bg-primary text-on-primary font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:opacity-95 transition-opacity flex justify-center items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 font-semibold"
           >
-            <span className="material-symbols-outlined text-base">shopping_cart</span>
+            <span className="material-symbols-outlined text-[13px]">shopping_cart</span>
             Buy Now
           </button>
           <button
             onClick={handleReserve}
             disabled={isPending}
-            className="w-full border border-primary text-primary font-label-md py-3.5 px-6 rounded uppercase tracking-wider text-xs hover:bg-primary/5 transition-colors flex justify-center items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full border border-primary text-primary font-label-md py-2.5 px-5 rounded-full uppercase tracking-wider text-[10px] hover:bg-primary/5 transition-colors flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 font-semibold"
           >
-            <span className="material-symbols-outlined text-base">lock</span>
+            <span className="material-symbols-outlined text-[13px]">lock</span>
             Reserve (20 min Hold)
           </button>
           <a
             href={waUrl}
             target="_blank"
-            className="w-full border border-outline text-on-surface-variant font-label-md py-3 px-6 rounded uppercase tracking-wider text-xs hover:bg-surface-container-low transition-colors flex justify-center items-center gap-2"
+            className="w-full border border-outline/40 text-on-surface-variant font-label-md py-2.5 px-5 rounded-full uppercase tracking-wider text-[10px] hover:bg-surface-container-low transition-colors flex justify-center items-center gap-1.5 cursor-pointer text-center justify-center"
           >
-            <span className="material-symbols-outlined text-sm">chat</span> Ask on WhatsApp
+            <span className="material-symbols-outlined text-[13px]">chat</span> Ask on WhatsApp
           </a>
         </div>
       )}

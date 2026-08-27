@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { reserveProductAction } from './actions';
+import { reserveProductAction, clientCheckoutAction } from './actions';
+import Script from 'next/script';
 
 interface Product {
   id: string;
@@ -126,6 +127,97 @@ export default function ShopClient({
     });
   };
 
+  // Direct Buy Now handler from the catalogue page
+  const handleBuyNow = async (productId: string) => {
+    if (!customer) {
+      router.push('/login');
+      return;
+    }
+
+    startTransition(async () => {
+      setError('');
+      // 1. Reserve first
+      const reserveRes = await reserveProductAction(productId);
+      if (reserveRes.error) {
+        alert(reserveRes.error);
+        return;
+      }
+
+      const reservationId = reserveRes.reservation?.id;
+      if (!reservationId) {
+        alert('Failed to place hold before checkout.');
+        return;
+      }
+
+      // 2. Trigger checkout immediately
+      const checkoutRes = await clientCheckoutAction({ reservationId });
+      if (checkoutRes.error) {
+        alert(checkoutRes.error);
+      } else if (checkoutRes.useStandardCheckout) {
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          alert('Razorpay Key ID is missing in environment variables.');
+          return;
+        }
+        const options = {
+          key: keyId,
+          amount: checkoutRes.amount,
+          currency: checkoutRes.currency || 'INR',
+          name: 'Jawhara',
+          description: `Payment for Order ${checkoutRes.orderNumber}`,
+          order_id: checkoutRes.razorpayOrderId,
+          handler: async function (response: any) {
+            try {
+              const verifyRes = await fetch('/api/verify-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok) {
+                throw new Error(verifyData.error || 'Payment signature verification failed.');
+              }
+
+              alert('Payment successful! Your order has been placed and is being processed.');
+              router.refresh();
+            } catch (verifyErr: any) {
+              console.error(verifyErr);
+              alert(`Verification Error: ${verifyErr.message}`);
+            }
+          },
+          prefill: {
+            name: checkoutRes.customerName,
+            email: checkoutRes.customerEmail || undefined,
+            contact: checkoutRes.customerMobile || undefined,
+          },
+          theme: {
+            color: '#755566', // Mauve
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (response: any) {
+          alert(`Payment failed: ${response.error.description}`);
+        });
+        rzp.open();
+      } else if (checkoutRes.paymentUrl) {
+        window.open(checkoutRes.paymentUrl, '_blank');
+        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        router.refresh();
+      } else {
+        alert('Checkout initiated successfully.');
+        router.refresh();
+      }
+    });
+  };
+
   // Filtering Logic
   const filteredProducts = initialProducts.filter((product) => {
     const matchesCategory = selectedCategory === 'ALL' || product.category.id === selectedCategory;
@@ -149,6 +241,7 @@ export default function ShopClient({
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md flex flex-col relative overflow-x-hidden">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       {/* Admin preview banner */}
       {isAdmin && (
         <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4 text-center text-xs font-semibold text-primary flex items-center justify-center gap-2 relative z-50 animate-fade-in shrink-0">
@@ -185,15 +278,17 @@ export default function ShopClient({
                 </div>
                 <Link
                   href="/dashboard"
-                  className="px-4 py-2 bg-primary-container text-on-primary-container text-xs font-label-md uppercase tracking-wider rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 bg-primary text-white text-[10px] font-label-md uppercase tracking-wider rounded-full hover:opacity-95 transition-opacity flex items-center gap-1 shadow-xs"
                 >
-                  <span className="material-symbols-outlined text-[16px]">dashboard</span>
-                  My Dashboard
+                  <span className="material-symbols-outlined text-[13px]">dashboard</span>
+                  <span className="hidden sm:inline">My Dashboard</span>
+                  <span className="sm:hidden">Dashboard</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-2 border border-outline text-on-surface-variant text-xs font-label-md uppercase tracking-wider rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 border border-outline/40 text-on-surface-variant text-[10px] font-label-md uppercase tracking-wider rounded-full hover:bg-surface-container-low transition-colors cursor-pointer flex items-center gap-1"
                 >
+                  <span className="material-symbols-outlined text-[13px]">logout</span>
                   Sign Out
                 </button>
               </div>
@@ -347,28 +442,44 @@ export default function ShopClient({
                     </Link>
 
                     {/* Action bar */}
-                    <div className="px-4 pb-4 flex items-center justify-between gap-2 border-t border-outline-variant/10 pt-3">
-                      <span className="font-headline-sm text-primary text-sm font-semibold">
-                        ₹{p.price.toLocaleString('en-IN')}
-                      </span>
+                    <div className="px-3 pb-3.5 flex flex-col gap-2 border-t border-outline-variant/10 pt-2.5">
+                      <div className="flex justify-between items-center px-0.5">
+                        <span className="text-[10px] font-label-sm text-outline uppercase tracking-wider">Price</span>
+                        <span className="font-headline-sm text-primary text-sm font-bold">
+                          ₹{p.price.toLocaleString('en-IN')}
+                        </span>
+                      </div>
                       
                       {isAvailable ? (
-                        <button
-                          onClick={() => handleReserve(p.id)}
-                          className="bg-primary text-white text-[10px] font-label-md uppercase tracking-wider px-3 py-1.5 rounded hover:opacity-90 cursor-pointer flex items-center gap-1 z-20"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">lock</span>
-                          Hold Piece
-                        </button>
+                        <div className="flex gap-1.5 w-full">
+                          <button
+                            onClick={() => handleBuyNow(p.id)}
+                            className="flex-grow bg-primary text-white text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:opacity-90 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">shopping_cart</span>
+                            Buy Now
+                          </button>
+                          <button
+                            onClick={() => handleReserve(p.id)}
+                            className="flex-grow border border-primary/60 text-primary text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:bg-primary/5 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                          >
+                            <span className="material-symbols-outlined text-[11px]">lock</span>
+                            Hold (20m)
+                          </button>
+                        </div>
                       ) : isReserved ? (
-                        <span className="text-[10px] font-label-md text-error italic uppercase tracking-wider flex items-center gap-1 font-semibold">
-                          <span className="material-symbols-outlined text-[12px]">schedule</span>
-                          On Hold ({timers[p.id] || 'Reserved'})
-                        </span>
+                        <div className="text-center w-full py-1.5 bg-error/5 border border-error/15 rounded-lg">
+                          <span className="text-[9px] font-label-md text-error uppercase tracking-wider flex items-center justify-center gap-1 font-semibold">
+                            <span className="material-symbols-outlined text-[11px]">schedule</span>
+                            On Hold ({timers[p.id] || 'Reserved'})
+                          </span>
+                        </div>
                       ) : (
-                        <span className="text-[10px] font-label-md text-outline italic uppercase tracking-wider">
-                          Unavailable
-                        </span>
+                        <div className="text-center w-full py-1.5 bg-surface-container-low border border-outline-variant/20 rounded-lg">
+                          <span className="text-[9px] font-label-md text-outline uppercase tracking-wider font-semibold">
+                            Sold Out
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>
