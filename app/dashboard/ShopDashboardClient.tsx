@@ -11,6 +11,7 @@ import {
   getClientMessagesAction,
   clientCheckoutAction
 } from '../shop/actions';
+import CheckoutModal from '@/components/CheckoutModal';
 
 interface Reservation {
   id: string;
@@ -61,6 +62,10 @@ export default function ShopDashboardClient({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
   const [expiredHolds, setExpiredHolds] = useState<Record<string, boolean>>({});
+  
+  // Checkout Modal State
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutHold, setCheckoutHold] = useState<Reservation | null>(null);
 
   // Chat messaging states
   const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
@@ -231,10 +236,15 @@ export default function ShopDashboardClient({
     }
   };
 
-  const handleCheckout = async (reservationId: string) => {
+  const triggerCheckout = (hold: Reservation) => {
+    setCheckoutHold(hold);
+    setIsCheckoutOpen(true);
+  };
+
+  const handleCheckout = async (reservationId: string, notes?: string) => {
     setCheckingOutId(reservationId);
     try {
-      const res = await clientCheckoutAction({ reservationId });
+      const res = await clientCheckoutAction({ reservationId, notes });
       if (res.error) {
         alert(res.error);
         setCheckingOutId(null);
@@ -427,7 +437,7 @@ export default function ShopDashboardClient({
                           </button>
                           
                           <button
-                            onClick={() => handleCheckout(hold.id)}
+                            onClick={() => triggerCheckout(hold)}
                             disabled={cancellingId === hold.id || checkingOutId === hold.id}
                             className="px-3 py-1 bg-primary text-white hover:opacity-90 disabled:opacity-50 text-[10px] font-label-md uppercase tracking-wider rounded cursor-pointer"
                           >
@@ -668,6 +678,18 @@ export default function ShopDashboardClient({
       </p>
     </footer>
     <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+    {/* Checkout Options Modal */}
+    <CheckoutModal
+      isOpen={isCheckoutOpen}
+      onClose={() => setIsCheckoutOpen(false)}
+      onConfirm={(notes) => {
+        if (checkoutHold) {
+          handleCheckout(checkoutHold.id, notes);
+        }
+        setIsCheckoutOpen(false);
+      }}
+      price={checkoutHold?.product.price || 0}
+    />
   </div>
   );
 }

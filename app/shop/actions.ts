@@ -475,7 +475,7 @@ export async function getClientMessagesAction() {
 /**
  * Initiates the checkout payment process for a reserved product.
  */
-export async function clientCheckoutAction(data: { reservationId: string }) {
+export async function clientCheckoutAction(data: { reservationId: string; notes?: string }) {
   const customer = await getCurrentCustomer();
   if (!customer) {
     return { error: 'Authentication required. Please log in first.' };
@@ -508,6 +508,7 @@ export async function clientCheckoutAction(data: { reservationId: string }) {
         total: reservation.product.price,
         status: OrderStatus.PENDING,
         paymentStatus: 'UNPAID',
+        notes: data.notes || null,
         orderItems: {
           create: {
             productId: reservation.productId,

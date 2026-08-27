@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
+import CheckoutModal from '@/components/CheckoutModal';
 import { 
   reserveProductAction,
   cancelReservationAction,
@@ -48,6 +49,10 @@ export default function ProductActionsClient({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [timerText, setTimerText] = useState('Reserved');
+  
+  // Checkout Modal State
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutType, setCheckoutType] = useState<'DIRECT' | 'HELD'>('DIRECT');
 
   // Real-time hold countdown timer
   useEffect(() => {
@@ -73,6 +78,7 @@ export default function ProductActionsClient({
   // Reservation handler
   const handleReserve = async () => {
     if (!customer) {
+      alert('Please sign in or register to place this item on hold.');
       router.push(`/login?redirect=/p/${productSlug}`);
       return;
     }
@@ -112,12 +118,18 @@ export default function ProductActionsClient({
     });
   };
 
+  // Trigger Checkout Options Modal for held items
+  const triggerCheckout = () => {
+    setCheckoutType('HELD');
+    setIsCheckoutOpen(true);
+  };
+
   // Checkout payment handler
-  const handleCheckout = async () => {
+  const handleCheckout = async (notes?: string) => {
     if (!activeReservation) return;
     startTransition(async () => {
       setError('');
-      const res = await clientCheckoutAction({ reservationId: activeReservation.id });
+      const res = await clientCheckoutAction({ reservationId: activeReservation.id, notes });
       if (res.error) {
         alert(res.error);
       } else if (res.useStandardCheckout) {
@@ -186,9 +198,21 @@ export default function ProductActionsClient({
     });
   };
 
-  // Direct checkout handler (Buy Now on available item)
-  const handleBuyNowDirect = async () => {
+  // Trigger Buy Now Options Modal for direct purchase
+  const triggerBuyNowDirect = () => {
     if (!customer) {
+      alert('Please sign in or register to complete your purchase.');
+      router.push(`/login?redirect=/p/${productSlug}`);
+      return;
+    }
+    setCheckoutType('DIRECT');
+    setIsCheckoutOpen(true);
+  };
+
+  // Direct checkout handler (Buy Now on available item)
+  const handleBuyNowDirect = async (notes?: string) => {
+    if (!customer) {
+      alert('Please sign in or register to complete your purchase.');
       router.push(`/login?redirect=/p/${productSlug}`);
       return;
     }
@@ -209,7 +233,7 @@ export default function ProductActionsClient({
       }
 
       // 2. Trigger checkout immediately
-      const checkoutRes = await clientCheckoutAction({ reservationId });
+      const checkoutRes = await clientCheckoutAction({ reservationId, notes });
       if (checkoutRes.error) {
         alert(checkoutRes.error);
       } else if (checkoutRes.useStandardCheckout) {
@@ -310,7 +334,7 @@ export default function ProductActionsClient({
           </p>
           <div className="flex flex-col gap-2.5">
             <button
-              onClick={handleCheckout}
+              onClick={triggerCheckout}
               disabled={isPending}
               className="w-full bg-primary text-on-primary font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:opacity-95 transition-opacity flex justify-center items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 font-semibold"
             >
@@ -345,7 +369,7 @@ export default function ProductActionsClient({
       ) : (
         <div className="flex flex-col gap-2.5">
           <button
-            onClick={handleBuyNowDirect}
+            onClick={triggerBuyNowDirect}
             disabled={isPending}
             className="w-full bg-primary text-on-primary font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:opacity-95 transition-opacity flex justify-center items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 font-semibold"
           >
@@ -369,6 +393,21 @@ export default function ProductActionsClient({
           </a>
         </div>
       )}
+
+      {/* Checkout Options Modal */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        onConfirm={(notes) => {
+          if (checkoutType === 'DIRECT') {
+            handleBuyNowDirect(notes);
+          } else {
+            handleCheckout(notes);
+          }
+          setIsCheckoutOpen(false);
+        }}
+        price={productPrice}
+      />
     </div>
   );
 }

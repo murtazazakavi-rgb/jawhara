@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { reserveProductAction, clientCheckoutAction } from './actions';
 import Script from 'next/script';
+import CheckoutModal from '@/components/CheckoutModal';
 
 interface Product {
   id: string;
@@ -45,6 +46,10 @@ export default function ShopClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
+  
+  // Checkout Modal State
+  const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   
   // Real-time reservation countdown timers
   const [timers, setTimers] = useState<Record<string, string>>({});
@@ -105,7 +110,7 @@ export default function ShopClient({
   // Reservation handler
   const handleReserve = async (productId: string) => {
     if (!customer) {
-      // Force log in
+      alert('Please sign in or register to place this item on hold.');
       router.push('/login');
       return;
     }
@@ -127,9 +132,21 @@ export default function ShopClient({
     });
   };
 
-  // Direct Buy Now handler from the catalogue page
-  const handleBuyNow = async (productId: string) => {
+  // Trigger Buy Now and open Checkout Options Modal
+  const triggerBuyNow = (product: Product) => {
     if (!customer) {
+      alert('Please sign in or register to complete your purchase.');
+      router.push(`/login?redirect=${window.location.pathname}`);
+      return;
+    }
+    setCheckoutProduct(product);
+    setIsCheckoutOpen(true);
+  };
+
+  // Direct Buy Now handler from the catalogue page
+  const handleBuyNow = async (productId: string, notes?: string) => {
+    if (!customer) {
+      alert('Please sign in or register to complete your purchase.');
       router.push('/login');
       return;
     }
@@ -150,7 +167,7 @@ export default function ShopClient({
       }
 
       // 2. Trigger checkout immediately
-      const checkoutRes = await clientCheckoutAction({ reservationId });
+      const checkoutRes = await clientCheckoutAction({ reservationId, notes });
       if (checkoutRes.error) {
         alert(checkoutRes.error);
       } else if (checkoutRes.useStandardCheckout) {
@@ -453,7 +470,7 @@ export default function ShopClient({
                       {isAvailable ? (
                         <div className="flex gap-1.5 w-full">
                           <button
-                            onClick={() => handleBuyNow(p.id)}
+                            onClick={() => triggerBuyNow(p)}
                             className="flex-grow bg-primary text-white text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:opacity-90 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
                           >
                             <span className="material-symbols-outlined text-[11px]">shopping_cart</span>
@@ -496,6 +513,19 @@ export default function ShopClient({
           © {new Date().getFullYear()} Jawhara - Dynamic Lookbook by MJZ
         </p>
       </footer>
+
+      {/* Checkout Options Modal */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        onConfirm={(notes) => {
+          if (checkoutProduct) {
+            handleBuyNow(checkoutProduct.id, notes);
+          }
+          setIsCheckoutOpen(false);
+        }}
+        price={checkoutProduct?.price || 0}
+      />
     </div>
   );
 }
