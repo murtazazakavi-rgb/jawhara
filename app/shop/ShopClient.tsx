@@ -167,14 +167,14 @@ export default function ShopClient({
       {/* Header bar */}
       <header className="w-full py-6 border-b border-outline-variant/20 bg-surface-container-lowest z-10 sticky top-0 shadow-sm">
         <div className="max-w-container-max mx-auto px-4 sm:px-6 md:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-            <span className="font-display font-semibold text-2xl tracking-widest uppercase text-primary">
+          <Link href="/" className="flex flex-col items-center sm:items-start text-center sm:text-left group cursor-pointer">
+            <span className="font-display font-semibold text-2xl tracking-widest uppercase text-primary group-hover:opacity-80 transition-opacity">
               Jawhara
             </span>
             <span className="text-[9px] font-label-sm uppercase tracking-widest text-outline -mt-1">
               Where Every Thing Pretty Lives
             </span>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-4">
             {customer ? (

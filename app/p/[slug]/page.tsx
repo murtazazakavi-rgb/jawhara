@@ -128,7 +128,7 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
   });
 
   const mainImage = product.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600';
-  const isSold = product.inventoryStatus === 'SOLD';
+  const isSold = product.inventoryStatus === 'SOLD' || (!product.isUnique && product.quantity <= 0);
 
   // Construct WhatsApp Inquiry link
   const host = (await headers()).get('host') || 'localhost:3000';
@@ -157,14 +157,14 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
       {/* Public Header */}
       <header className="w-full py-6 border-b border-outline-variant/20 bg-surface-container-lowest z-10 sticky top-0">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="font-display font-semibold text-xl tracking-widest uppercase text-primary">
+          <Link href="/" className="flex flex-col group cursor-pointer">
+            <span className="font-display font-semibold text-xl tracking-widest uppercase text-primary group-hover:opacity-80 transition-opacity">
               Jawhara
             </span>
             <span className="text-[9px] font-label-sm uppercase tracking-widest text-outline -mt-1">
               Where Every Thing Pretty Lives
             </span>
-          </div>
+          </Link>
           <Link
             href="/login"
             className="text-on-surface-variant hover:text-primary transition-colors text-xs font-label-md uppercase tracking-wider flex items-center gap-1.5"
@@ -195,10 +195,23 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
         {/* Right Info details */}
         <section className="md:col-span-6 flex flex-col justify-start md:pl-10 pt-6 md:pt-0">
           <div className="mb-6">
-            <span className="font-label-sm text-secondary uppercase tracking-widest text-xs">
-              {product.category.name}
-            </span>
-            <h1 className="font-display-lg text-3xl md:text-5xl text-on-surface mt-2 mb-4 leading-tight">
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span className="font-label-sm text-secondary uppercase tracking-widest text-xs">
+                {product.category.name}
+              </span>
+              {isSold && (
+                <span className="text-[10px] font-label-sm uppercase tracking-wider px-2.5 py-0.5 bg-outline-variant/30 text-outline border border-outline-variant/30 rounded font-bold">
+                  Sold Out
+                </span>
+              )}
+              {product.inventoryStatus === 'RESERVED' && (
+                <span className="text-[10px] font-label-sm uppercase tracking-wider px-2.5 py-0.5 bg-error/15 text-error border border-error/20 rounded font-bold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px]">schedule</span>
+                  On Hold
+                </span>
+              )}
+            </div>
+            <h1 className="font-display-lg text-3xl md:text-5xl text-on-surface mt-1 mb-4 leading-tight">
               {product.name}
             </h1>
             <p className="text-[10px] font-label-sm text-outline uppercase tracking-wider mb-6">

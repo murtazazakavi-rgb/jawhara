@@ -277,7 +277,7 @@ export default function ProductActionsClient({
     });
   };
 
-  const isSold = inventoryStatus === 'SOLD';
+  const isSold = inventoryStatus === 'SOLD' || (!isUnique && quantity <= 0);
   const isReserved = inventoryStatus === 'RESERVED';
   const isReservedByMe = isReserved && activeReservation && customer && activeReservation.customerId === customer.id;
 
