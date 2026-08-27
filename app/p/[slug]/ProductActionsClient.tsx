@@ -122,7 +122,11 @@ export default function ProductActionsClient({
         alert(res.error);
       } else if (res.useStandardCheckout) {
         // Standard Razorpay Checkout Modal
-        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TUMOjBupLIHjyd';
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          alert('Razorpay Key ID is missing in environment variables.');
+          return;
+        }
         const options = {
           key: keyId,
           amount: res.amount,
@@ -209,7 +213,11 @@ export default function ProductActionsClient({
       if (checkoutRes.error) {
         alert(checkoutRes.error);
       } else if (checkoutRes.useStandardCheckout) {
-        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TUMOjBupLIHjyd';
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          alert('Razorpay Key ID is missing in environment variables.');
+          return;
+        }
         const options = {
           key: keyId,
           amount: checkoutRes.amount,

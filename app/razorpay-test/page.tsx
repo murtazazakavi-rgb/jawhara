@@ -52,7 +52,13 @@ export default function RazorpayTestPage() {
       addLog(`Razorpay Order Created: ${orderData.order_id}`);
 
       // 2. Open Razorpay Checkout Modal
-      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TUMOjBupLIHjyd';
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!keyId) {
+        addLog('Error: Razorpay Key ID is missing in environment variables.');
+        setLoading(false);
+        setStatus('failed');
+        return;
+      }
       addLog(`Initializing checkout modal with Key ID: ${keyId}`);
 
       const options = {

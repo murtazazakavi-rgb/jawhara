@@ -240,7 +240,12 @@ export default function ShopDashboardClient({
         setCheckingOutId(null);
       } else if (res.useStandardCheckout) {
         // Standard Checkout Modal Integration
-        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_TUMOjBupLIHjyd';
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        if (!keyId) {
+          alert('Razorpay Key ID is missing in environment variables.');
+          setCheckingOutId(null);
+          return;
+        }
         
         const options = {
           key: keyId,
