@@ -90,24 +90,50 @@ export default function ShopClient({
     try {
       const stored = localStorage.getItem('jawhara_cart');
       const currentCart = stored ? JSON.parse(stored) : [];
-      if (currentCart.some((item: any) => item.id === product.id)) {
-        alert('This item is already in your cart.');
-        return;
+      const existing = currentCart.find((item: any) => item.id === product.id);
+
+      if (existing) {
+        if (product.isUnique) {
+          alert('This unique item is already in your cart.');
+          return;
+        }
+        if (existing.quantity >= product.quantity) {
+          alert(`You have added the maximum available quantity (${product.quantity}) for this item.`);
+          return;
+        }
+        existing.quantity += 1;
+        alert('Increased item quantity in cart!');
+      } else {
+        currentCart.push({
+          id: product.id,
+          productCode: product.productCode,
+          name: product.name,
+          price: product.price,
+          slug: product.slug,
+          image: product.images[0]?.url || null,
+          isUnique: product.isUnique,
+          maxQuantity: product.quantity,
+          quantity: 1,
+        });
+        alert('Item added to cart!');
       }
-      currentCart.push({
-        id: product.id,
-        productCode: product.productCode,
-        name: product.name,
-        price: product.price,
-        slug: product.slug,
-        image: product.images[0]?.url || null,
-      });
       localStorage.setItem('jawhara_cart', JSON.stringify(currentCart));
       setCart(currentCart);
-      alert('Item added to cart!');
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleUpdateCartQuantity = (productId: string, newQty: number) => {
+    const updated = cart.map(item => {
+      if (item.id === productId) {
+        const qty = Math.max(1, Math.min(newQty, item.maxQuantity));
+        return { ...item, quantity: qty };
+      }
+      return item;
+    });
+    localStorage.setItem('jawhara_cart', JSON.stringify(updated));
+    setCart(updated);
   };
 
   const handleRemoveFromCart = (productId: string) => {
@@ -127,8 +153,8 @@ export default function ShopClient({
     
     setIsCartCheckingOut(true);
     try {
-      const productIds = cart.map(item => item.id);
-      const checkoutRes = await clientCartCheckoutAction({ productIds });
+      const items = cart.map(item => ({ productId: item.id, quantity: item.quantity }));
+      const checkoutRes = await clientCartCheckoutAction({ items });
       
       if (checkoutRes.error) {
         alert(checkoutRes.error);
@@ -728,7 +754,7 @@ export default function ShopClient({
 
       {/* Shopping Cart Drawer Sidebar */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-55 flex justify-end">
+        <div className="fixed inset-0 z-[100] flex justify-end">
           {/* Backdrop */}
           <div
             onClick={() => setIsCartOpen(false)}
@@ -799,7 +825,30 @@ export default function ShopClient({
                           </p>
                         </div>
 
-                        <div className="flex justify-end mt-2">
+                        <div className="flex justify-between items-center mt-2 pt-2 border-t border-outline-variant/10">
+                          {/* Quantity Selector */}
+                          {!item.isUnique && item.maxQuantity > 1 ? (
+                            <div className="flex items-center gap-2 bg-surface-container border border-outline-variant/30 rounded-full px-2 py-0.5">
+                              <button
+                                onClick={() => handleUpdateCartQuantity(item.id, item.quantity - 1)}
+                                disabled={item.quantity <= 1}
+                                className="text-xs font-bold text-on-surface-variant hover:text-primary disabled:opacity-40 cursor-pointer w-4 h-4 flex items-center justify-center"
+                              >
+                                -
+                              </button>
+                              <span className="text-[11px] font-semibold font-mono w-4 text-center">{item.quantity}</span>
+                              <button
+                                onClick={() => handleUpdateCartQuantity(item.id, item.quantity + 1)}
+                                disabled={item.quantity >= item.maxQuantity}
+                                className="text-xs font-bold text-on-surface-variant hover:text-primary disabled:opacity-40 cursor-pointer w-4 h-4 flex items-center justify-center"
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-outline uppercase font-label-sm">Qty: 1</span>
+                          )}
+
                           <button
                             onClick={() => handleRemoveFromCart(item.id)}
                             className="text-[9px] font-label-md text-error hover:underline uppercase tracking-wider cursor-pointer"
@@ -820,7 +869,7 @@ export default function ShopClient({
                 <div className="flex justify-between items-center">
                   <span className="font-label-md text-xs text-outline uppercase tracking-wider">Subtotal:</span>
                   <span className="font-headline-lg text-primary text-base font-bold">
-                    ₹{cart.reduce((sum, item) => sum + item.price, 0).toLocaleString('en-IN')}
+                    ₹{cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString('en-IN')}
                   </span>
                 </div>
                 
@@ -841,7 +890,7 @@ export default function ShopClient({
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-[13px]">payments</span>
-                      Checkout Cart (₹{cart.reduce((sum, item) => sum + item.price, 0).toLocaleString('en-IN')})
+                      Checkout Cart (₹{cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString('en-IN')})
                     </>
                   )}
                 </button>

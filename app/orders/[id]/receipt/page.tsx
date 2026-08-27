@@ -198,7 +198,8 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
                   <tr className="border-b border-outline-variant/20 text-outline uppercase tracking-wider text-[11px] font-label-md">
                     <th className="py-2.5">Item Details</th>
                     <th className="py-2.5 text-center">Qty</th>
-                    <th className="py-2.5 text-right">Price</th>
+                    <th className="py-2.5 text-right">Unit Price</th>
+                    <th className="py-2.5 text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -218,6 +219,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
                           </div>
                         </td>
                         <td className="py-4 text-center">{item.quantity}</td>
+                        <td className="py-4 text-right">₹{Number(item.unitPrice).toLocaleString('en-IN')}</td>
                         <td className="py-4 text-right">₹{Number(item.finalPrice).toLocaleString('en-IN')}</td>
                       </tr>
                     );

@@ -624,37 +624,54 @@ export async function clientCheckoutAction(data: { reservationId: string; notes?
 /**
  * Initiates the checkout payment process for a list of products in the cart.
  */
-export async function clientCartCheckoutAction(data: { productIds: string[]; notes?: string }) {
+export async function clientCartCheckoutAction(data: { items: { productId: string; quantity: number }[]; notes?: string }) {
   const customer = await getCurrentCustomer();
   if (!customer) {
     return { error: 'Authentication required. Please log in first.' };
   }
 
-  if (!data.productIds || data.productIds.length === 0) {
+  if (!data.items || data.items.length === 0) {
     return { error: 'Cart is empty.' };
   }
+
+  const productIds = data.items.map(item => item.productId);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Fetch and validate all products
       const products = await tx.product.findMany({
-        where: { id: { in: data.productIds } },
+        where: { id: { in: productIds } },
       });
 
-      if (products.length !== data.productIds.length) {
+      if (products.length !== productIds.length) {
         throw new Error('Some products in your cart could not be found.');
       }
 
+      // Map for quick product lookup
+      const productsMap = new Map(products.map(p => [p.id, p]));
+
       // Check availability of each product
-      for (const product of products) {
+      for (const item of data.items) {
+        const product = productsMap.get(item.productId);
+        if (!product) {
+          throw new Error('Product not found.');
+        }
+
         if (product.publishStatus !== 'PUBLISHED') {
           throw new Error(`Product "${product.name}" is not available in the public catalog.`);
         }
-        if (product.isUnique && product.inventoryStatus !== 'AVAILABLE') {
-          throw new Error(`Product "${product.name}" is no longer available.`);
-        }
-        if (!product.isUnique && product.quantity <= 0) {
-          throw new Error(`Product "${product.name}" is out of stock.`);
+
+        if (product.isUnique) {
+          if (item.quantity > 1) {
+            throw new Error(`Product "${product.name}" is unique and only 1 can be purchased.`);
+          }
+          if (product.inventoryStatus !== 'AVAILABLE') {
+            throw new Error(`Product "${product.name}" is no longer available.`);
+          }
+        } else {
+          if (product.quantity < item.quantity) {
+            throw new Error(`Product "${product.name}" only has ${product.quantity} units available.`);
+          }
         }
       }
 
@@ -666,7 +683,9 @@ export async function clientCartCheckoutAction(data: { productIds: string[]; not
       const expiresAt = new Date(Date.now() + holdMinutes * 60 * 1000);
 
       // 3. Atomically update product inventory and create reservations
-      for (const product of products) {
+      for (const item of data.items) {
+        const product = productsMap.get(item.productId)!;
+
         if (product.isUnique) {
           const updateResult = await tx.product.updateMany({
             where: {
@@ -687,15 +706,15 @@ export async function clientCartCheckoutAction(data: { productIds: string[]; not
             where: {
               id: product.id,
               isUnique: false,
-              quantity: { gte: 1 },
+              quantity: { gte: item.quantity },
             },
             data: {
-              quantity: { decrement: 1 },
+              quantity: { decrement: item.quantity },
             },
           });
 
           if (updateResult.count === 0) {
-            throw new Error(`Product "${product.name}" is out of stock.`);
+            throw new Error(`Product "${product.name}" does not have enough stock.`);
           }
         }
 
@@ -707,7 +726,7 @@ export async function clientCartCheckoutAction(data: { productIds: string[]; not
             reservedBy: `${customer.name} (Website Cart)`,
             status: 'ACTIVE',
             expiresAt,
-            quantity: 1,
+            quantity: item.quantity,
           },
         });
 
@@ -717,7 +736,7 @@ export async function clientCartCheckoutAction(data: { productIds: string[]; not
             customerId: customer.id,
             productId: product.id,
             type: 'RESERVED',
-            metadata: { channel: 'CLIENT_PORTAL_CART', durationMinutes: holdMinutes },
+            metadata: { channel: 'CLIENT_PORTAL_CART', durationMinutes: holdMinutes, quantity: item.quantity },
           },
         });
       }
@@ -725,7 +744,10 @@ export async function clientCartCheckoutAction(data: { productIds: string[]; not
       // 4. Create the Order
       const count = await tx.order.count();
       const orderNumber = `JWR-ORD-${(count + 1).toString().padStart(4, '0')}`;
-      const totalAmount = products.reduce((sum, p) => sum + Number(p.price), 0);
+      const totalAmount = data.items.reduce((sum, item) => {
+        const product = productsMap.get(item.productId)!;
+        return sum + Number(product.price) * item.quantity;
+      }, 0);
 
       const order = await tx.order.create({
         data: {
@@ -737,12 +759,15 @@ export async function clientCartCheckoutAction(data: { productIds: string[]; not
           paymentStatus: 'UNPAID',
           notes: data.notes || null,
           orderItems: {
-            create: products.map((product) => ({
-              productId: product.id,
-              quantity: 1,
-              unitPrice: product.price,
-              finalPrice: product.price,
-            })),
+            create: data.items.map((item) => {
+              const product = productsMap.get(item.productId)!;
+              return {
+                productId: product.id,
+                quantity: item.quantity,
+                unitPrice: product.price,
+                finalPrice: new Prisma.Decimal(Number(product.price) * item.quantity),
+              };
+            }),
           },
         },
       });

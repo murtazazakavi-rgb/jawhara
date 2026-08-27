@@ -83,20 +83,34 @@ export default function ProductActionsClient({
   const handleAddToCart = () => {
     try {
       const currentCart = JSON.parse(localStorage.getItem('jawhara_cart') || '[]');
-      if (currentCart.some((item: any) => item.id === productId)) {
-        alert('This item is already in your cart.');
-        return;
+      const existing = currentCart.find((item: any) => item.id === productId);
+
+      if (existing) {
+        if (isUnique) {
+          alert('This unique item is already in your cart.');
+          return;
+        }
+        if (existing.quantity >= quantity) {
+          alert(`You have added the maximum available quantity (${quantity}) for this item.`);
+          return;
+        }
+        existing.quantity += 1;
+        alert('Increased item quantity in cart!');
+      } else {
+        currentCart.push({
+          id: productId,
+          productCode,
+          name: productName,
+          price: productPrice,
+          slug: productSlug,
+          image: productImage,
+          isUnique,
+          maxQuantity: quantity,
+          quantity: 1,
+        });
+        alert('Item added to cart!');
       }
-      currentCart.push({
-        id: productId,
-        productCode,
-        name: productName,
-        price: productPrice,
-        slug: productSlug,
-        image: productImage
-      });
       localStorage.setItem('jawhara_cart', JSON.stringify(currentCart));
-      alert('Item added to cart!');
       window.dispatchEvent(new Event('jawhara_cart_updated'));
     } catch (e) {
       console.error(e);
