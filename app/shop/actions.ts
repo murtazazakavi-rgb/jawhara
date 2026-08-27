@@ -863,3 +863,65 @@ export async function clientCartCheckoutAction(data: { items: { productId: strin
   }
 }
 
+/**
+ * Registers a guest customer and starts a customer session.
+ */
+export async function clientGuestRegisterAction(data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  city?: string;
+  address?: string;
+}) {
+  if (!data.firstName.trim() || !data.lastName.trim() || !data.email.trim() || !data.mobile.trim()) {
+    return { error: 'First name, last name, email, and mobile phone number are all required.' };
+  }
+
+  const emailLower = data.email.toLowerCase().trim();
+  const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
+
+  let normalized: string;
+  try {
+    normalized = normalizePhoneNumber(data.mobile);
+  } catch (err) {
+    return { error: 'Invalid mobile phone number format.' };
+  }
+
+  try {
+    // Upsert Customer: if email exists, update it; otherwise create
+    const customer = await prisma.customer.upsert({
+      where: { email: emailLower },
+      update: {
+        name: fullName,
+        mobile: data.mobile.trim(),
+        normalizedMobile: normalized,
+        city: data.city?.trim() || null,
+        notes: data.address?.trim() ? `Guest Checkout Address: ${data.address.trim()}` : null,
+      },
+      create: {
+        name: fullName,
+        email: emailLower,
+        mobile: data.mobile.trim(),
+        normalizedMobile: normalized,
+        password: '123456', // default password
+        city: data.city?.trim() || null,
+        source: 'WEBSITE',
+        notes: data.address?.trim() ? `Guest Checkout Address: ${data.address.trim()}` : null,
+      },
+    });
+
+    // Start Customer session cookie
+    await setCustomerSession({
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+    });
+
+    return { success: true, customer };
+  } catch (error: any) {
+    console.error('clientGuestRegisterAction error:', error);
+    return { error: error.message || 'Failed to register guest details.' };
+  }
+}
+

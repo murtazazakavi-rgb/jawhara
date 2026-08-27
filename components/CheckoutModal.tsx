@@ -1,26 +1,54 @@
 'use client';
 
 import React, { useState } from 'react';
+import PhoneInput from './PhoneInput';
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (notes: string) => void;
+  onConfirm: (notes: string, guestInfo?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    mobile: string;
+    city: string;
+    address: string;
+  }) => void;
   price: number;
+  showGuestFields?: boolean;
 }
 
-export default function CheckoutModal({ isOpen, onClose, onConfirm, price }: CheckoutModalProps) {
+export default function CheckoutModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  price,
+  showGuestFields = false,
+}: CheckoutModalProps) {
   const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [error, setError] = useState('');
 
+  // Guest fields state
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (showGuestFields) {
+      if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim()) {
+        setError('Please fill in all guest information fields.');
+        return;
+      }
+    }
 
     if (deliveryMethod === 'DELIVERY') {
       if (!address.trim() || !city.trim() || !pincode.trim()) {
@@ -36,7 +64,16 @@ export default function CheckoutModal({ isOpen, onClose, onConfirm, price }: Che
       notes = `Method: Self-Pickup from Boutique\nPickup Location: Maison Jawhara Boutique, Mumbai\nDelivery Charges: Free`;
     }
 
-    onConfirm(notes);
+    const guestInfo = showGuestFields ? {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.toLowerCase().trim(),
+      mobile: phone,
+      city: city.trim() || 'N/A',
+      address: deliveryMethod === 'DELIVERY' ? address.trim() : 'Boutique Pickup',
+    } : undefined;
+
+    onConfirm(notes, guestInfo);
   };
 
   return (
@@ -60,6 +97,69 @@ export default function CheckoutModal({ isOpen, onClose, onConfirm, price }: Che
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Guest Checkout Fields */}
+          {showGuestFields && (
+            <div className="space-y-4 border-b border-outline-variant/20 pb-4 animate-fade-in">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">
+                Guest Contact Information
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Jane"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-1.5 focus:ring-primary/40 text-sm font-semibold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Doe"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-1.5 focus:ring-primary/40 text-sm font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="jane@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-1.5 focus:ring-primary/40 text-sm font-semibold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Phone Number (Country Detection) *
+                </label>
+                <PhoneInput
+                  value={phone}
+                  onChange={setPhone}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
           {/* Method Selection */}
           <div className="space-y-2.5">
             <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { reserveProductAction, clientCheckoutAction, clientCartCheckoutAction } from './actions';
+import { reserveProductAction, clientCheckoutAction, clientCartCheckoutAction, clientGuestRegisterAction } from './actions';
 import Script from 'next/script';
 import CheckoutModal from '@/components/CheckoutModal';
 
@@ -44,12 +44,14 @@ export default function ShopClient({
   isAdmin = false,
 }: ShopClientProps) {
   const router = useRouter();
+  const [activeCustomer, setActiveCustomer] = useState(customer);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   
   // Checkout Modal State
   const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState<'DIRECT' | 'CART'>('DIRECT');
   
   // Shopping Cart States
   const [cart, setCart] = useState<any[]>([]);
@@ -79,12 +81,12 @@ export default function ShopClient({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('checkoutCart') === 'true' && customer) {
+      if (params.get('checkoutCart') === 'true' && activeCustomer) {
         setIsCartOpen(true);
         router.replace('/', { scroll: false });
       }
     }
-  }, [customer, router]);
+  }, [activeCustomer, router]);
 
   const handleAddToCart = (product: Product) => {
     try {
@@ -142,10 +144,11 @@ export default function ShopClient({
     setCart(updated);
   };
 
-  const handleCartCheckout = async () => {
-    if (!customer) {
-      alert('Please sign in or register to complete your purchase.');
-      router.push(`/login?redirect=/?checkoutCart=true`);
+  const handleCartCheckout = async (notes?: string) => {
+    if (!activeCustomer && !notes) {
+      setCheckoutMode('CART');
+      setCheckoutProduct(null);
+      setIsCheckoutOpen(true);
       return;
     }
 
@@ -154,7 +157,7 @@ export default function ShopClient({
     setIsCartCheckingOut(true);
     try {
       const items = cart.map(item => ({ productId: item.id, quantity: item.quantity }));
-      const checkoutRes = await clientCartCheckoutAction({ items });
+      const checkoutRes = await clientCartCheckoutAction({ items, notes });
       
       if (checkoutRes.error) {
         alert(checkoutRes.error);
@@ -333,20 +336,15 @@ export default function ShopClient({
 
   // Trigger Buy Now and open Checkout Options Modal
   const triggerBuyNow = (product: Product) => {
-    if (!customer) {
-      alert('Please sign in or register to complete your purchase.');
-      router.push(`/login?redirect=${window.location.pathname}`);
-      return;
-    }
+    setCheckoutMode('DIRECT');
     setCheckoutProduct(product);
     setIsCheckoutOpen(true);
   };
 
   // Direct Buy Now handler from the catalogue page
   const handleBuyNow = async (productId: string, notes?: string) => {
-    if (!customer) {
+    if (!activeCustomer) {
       alert('Please sign in or register to complete your purchase.');
-      router.push('/login');
       return;
     }
 
@@ -743,13 +741,34 @@ export default function ShopClient({
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
-        onConfirm={(notes) => {
-          if (checkoutProduct) {
-            handleBuyNow(checkoutProduct.id, notes);
+        showGuestFields={!activeCustomer}
+        onConfirm={async (notes, guestInfo) => {
+          if (guestInfo) {
+            // Register guest customer first
+            const regRes = await clientGuestRegisterAction(guestInfo);
+            if (regRes.error) {
+              alert(regRes.error);
+              return;
+            }
+            if (regRes.customer) {
+              setActiveCustomer(regRes.customer);
+              // Now that they are registered and logged in, trigger checkout
+              if (checkoutMode === 'DIRECT' && checkoutProduct) {
+                await handleBuyNow(checkoutProduct.id, notes);
+              } else if (checkoutMode === 'CART') {
+                await handleCartCheckout(notes);
+              }
+            }
+          } else {
+            if (checkoutMode === 'DIRECT' && checkoutProduct) {
+              await handleBuyNow(checkoutProduct.id, notes);
+            } else if (checkoutMode === 'CART') {
+              await handleCartCheckout(notes);
+            }
           }
           setIsCheckoutOpen(false);
         }}
-        price={checkoutProduct?.price || 0}
+        price={checkoutMode === 'DIRECT' ? (checkoutProduct?.price || 0) : cart.reduce((sum, item) => sum + item.price * item.quantity, 0)}
       />
 
       {/* Shopping Cart Drawer Sidebar */}
@@ -878,7 +897,7 @@ export default function ShopClient({
                 </p>
 
                 <button
-                  onClick={handleCartCheckout}
+                  onClick={() => handleCartCheckout()}
                   disabled={isCartCheckingOut}
                   className="w-full bg-primary text-white font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:opacity-95 transition-opacity flex justify-center items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 font-semibold"
                 >

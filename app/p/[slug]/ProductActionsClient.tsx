@@ -7,7 +7,8 @@ import CheckoutModal from '@/components/CheckoutModal';
 import { 
   reserveProductAction,
   cancelReservationAction,
-  clientCheckoutAction 
+  clientCheckoutAction,
+  clientGuestRegisterAction
 } from '../../shop/actions';
 
 interface ProductActionsClientProps {
@@ -50,6 +51,7 @@ export default function ProductActionsClient({
   productImage = null,
 }: ProductActionsClientProps) {
   const router = useRouter();
+  const [activeCustomer, setActiveCustomer] = useState(customer);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [timerText, setTimerText] = useState('Reserved');
@@ -247,20 +249,14 @@ export default function ProductActionsClient({
 
   // Trigger Buy Now Options Modal for direct purchase
   const triggerBuyNowDirect = () => {
-    if (!customer) {
-      alert('Please sign in or register to complete your purchase.');
-      router.push(`/login?redirect=/p/${productSlug}`);
-      return;
-    }
     setCheckoutType('DIRECT');
     setIsCheckoutOpen(true);
   };
 
   // Direct checkout handler (Buy Now on available item)
   const handleBuyNowDirect = async (notes?: string) => {
-    if (!customer) {
+    if (!activeCustomer) {
       alert('Please sign in or register to complete your purchase.');
-      router.push(`/login?redirect=/p/${productSlug}`);
       return;
     }
 
@@ -457,11 +453,28 @@ export default function ProductActionsClient({
       <CheckoutModal
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
-        onConfirm={(notes) => {
-          if (checkoutType === 'DIRECT') {
-            handleBuyNowDirect(notes);
+        showGuestFields={!activeCustomer}
+        onConfirm={async (notes, guestInfo) => {
+          if (guestInfo) {
+            const regRes = await clientGuestRegisterAction(guestInfo);
+            if (regRes.error) {
+              alert(regRes.error);
+              return;
+            }
+            if (regRes.customer) {
+              setActiveCustomer(regRes.customer);
+              if (checkoutType === 'DIRECT') {
+                await handleBuyNowDirect(notes);
+              } else {
+                await handleCheckout(notes);
+              }
+            }
           } else {
-            handleCheckout(notes);
+            if (checkoutType === 'DIRECT') {
+              await handleBuyNowDirect(notes);
+            } else {
+              await handleCheckout(notes);
+            }
           }
           setIsCheckoutOpen(false);
         }}

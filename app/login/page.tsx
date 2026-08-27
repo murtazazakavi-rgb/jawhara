@@ -4,6 +4,7 @@ import React, { useState, Suspense } from 'react';
 import { clientLoginAction, clientRegisterAndLoginAction } from '../shop/actions';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PhoneInput from '@/components/PhoneInput';
 
 function LoginPageContent() {
   const router = useRouter();
@@ -201,13 +202,11 @@ function LoginPageContent() {
 
             <div className="flex flex-col gap-1.5">
               <label className="font-label-md text-xs text-on-surface-variant uppercase">Mobile Phone Number *</label>
-              <input
-                type="tel"
-                required
-                placeholder="Include country code, e.g. +919876543210"
+              <PhoneInput
                 value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-1.5 outline-none font-body-md text-sm transition-colors"
+                onChange={setMobile}
+                required
+                className="mt-1"
               />
             </div>
 
