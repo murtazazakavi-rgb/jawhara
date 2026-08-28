@@ -153,13 +153,28 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
               Where Every Thing Pretty Lives
             </span>
           </Link>
-          <Link
-            href="/login"
-            className="text-on-surface-variant hover:text-primary transition-colors text-xs font-label-md uppercase tracking-wider flex items-center gap-1.5"
-          >
-            <span className="material-symbols-outlined text-sm">lock</span>
-            Admin Login
-          </Link>
+          {customer ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-on-surface-variant font-medium hidden sm:inline">
+                Hi, {customer.name}
+              </span>
+              <a
+                href="/shop/api/logout"
+                className="text-[10px] font-label-md uppercase tracking-wider text-error hover:underline flex items-center gap-1.5 font-semibold cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-xs">logout</span>
+                Sign Out
+              </a>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="text-on-surface-variant hover:text-primary transition-colors text-xs font-label-md uppercase tracking-wider flex items-center gap-1.5 font-semibold"
+            >
+              <span className="material-symbols-outlined text-sm">account_circle</span>
+              Client Login
+            </Link>
+          )}
         </div>
       </header>
 
