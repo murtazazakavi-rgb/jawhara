@@ -517,59 +517,127 @@ export default function ShopClient({
       <main className="max-w-container-max w-full mx-auto px-5 sm:px-6 md:px-8 py-10 flex-grow relative z-10 space-y-8">
         
         {/* Banner Section */}
-        <section className="text-center space-y-4 max-w-xl mx-auto py-6">
-          <span className="material-symbols-outlined text-primary/10 text-7xl select-none" style={{ fontVariationSettings: "'FILL' 1" }}>
-            local_florist
-          </span>
-          <h1 className="font-display text-4xl text-primary font-light">The Boutique Collection</h1>
-          <p className="font-body-lg text-on-surface-variant leading-relaxed text-sm">
+        <section className="text-center space-y-1 max-w-xl mx-auto py-2">
+          <h1 className="font-display text-2xl text-primary font-medium tracking-wide">The Boutique Collection</h1>
+          <p className="font-body-sm text-on-surface-variant text-xs max-w-md mx-auto">
             Handcrafted ridas, decors, bedding accessories, and curated luxury pieces.
           </p>
         </section>
 
-        {/* Filters and Controls Panel */}
-        <section className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* New Arrivals Section (Horizontal Scroll) */}
+        {initialProducts.filter((p) => p.inventoryStatus === 'AVAILABLE').length > 0 && (
+          <section className="space-y-3 animate-fade-in">
+            <div className="flex justify-between items-baseline px-1">
+              <h2 className="font-display text-xs text-primary font-bold uppercase tracking-wider">New Arrivals</h2>
+              <span className="text-[9px] font-label-md uppercase tracking-wider text-outline select-none">Swipe to explore →</span>
+            </div>
             
-            {/* Search Input */}
-            <div className="md:col-span-4 relative">
-              <span className="material-symbols-outlined absolute left-3 top-3.5 text-outline text-lg">search</span>
-              <input
-                type="text"
-                placeholder="Search name, code, colour..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent border-b border-outline-variant/50 focus:border-primary pl-10 pr-4 py-2.5 outline-none font-body-md text-sm outline-none transition-colors"
-              />
+            <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x scrollbar-none -mx-5 px-5 sm:mx-0 sm:px-0">
+              {initialProducts
+                .filter((p) => p.inventoryStatus === 'AVAILABLE')
+                .slice(0, 6)
+                .map((p) => {
+                  const mainImg = p.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200';
+                  return (
+                    <div 
+                      key={p.id}
+                      className="snap-start w-[140px] sm:w-[160px] shrink-0 bg-surface-container-lowest border border-outline-variant/10 rounded-lg overflow-hidden flex flex-col shadow-sm relative hover:shadow-md transition-shadow"
+                    >
+                      {/* New Badge */}
+                      <span className="absolute top-2 left-2 z-10 text-[8px] font-label-sm uppercase tracking-wide px-1.5 py-0.5 bg-primary/10 text-primary rounded font-semibold backdrop-blur-xs">
+                        New
+                      </span>
+                      
+                      <Link href={`/p/${p.slug}`} className="flex flex-col flex-grow">
+                        <div className="aspect-[3/4] bg-surface-container-low overflow-hidden relative">
+                          <img src={mainImg} alt={p.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="p-2.5 flex-grow flex flex-col justify-between space-y-1">
+                          <div className="space-y-0.5">
+                            <span className="text-[8px] font-mono text-outline block">{p.productCode}</span>
+                            <h3 className="font-label-md text-xs text-on-surface font-semibold line-clamp-1 hover:text-primary transition-colors">
+                              {p.name}
+                            </h3>
+                          </div>
+                          <span className="font-bold text-xs text-primary">₹{p.price.toLocaleString('en-IN')}</span>
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
             </div>
+          </section>
+        )}
 
-            {/* Category Select */}
-            <div className="md:col-span-4 flex flex-col gap-1">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full bg-transparent border-b border-outline-variant/50 focus:border-primary py-2.5 outline-none font-body-md text-sm cursor-pointer transition-colors"
+        {/* Search & Category Chips Panel */}
+        <section className="space-y-3.5 pt-2 border-t border-outline-variant/15">
+          {/* Search Bar */}
+          <div className="relative max-w-md mx-auto">
+            <span className="material-symbols-outlined absolute left-3.5 top-2 text-outline text-lg">search</span>
+            <input
+              type="text"
+              placeholder="Search name, code, colour..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-full pl-10 pr-10 py-1.5 outline-none font-body-md text-xs transition-all focus:border-primary focus:shadow-sm"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2 text-outline-variant hover:text-outline cursor-pointer"
               >
-                <option value="ALL">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            )}
+          </div>
 
-            {/* Availability Filter */}
-            <div className="md:col-span-4 flex flex-col gap-1">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full bg-transparent border-b border-outline-variant/50 focus:border-primary py-2.5 outline-none font-body-md text-sm cursor-pointer transition-colors"
+          {/* Categories Horizontal Scrolling List */}
+          <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-none -mx-5 px-5 sm:mx-0 sm:px-0">
+            <button
+              onClick={() => setSelectedCategory('ALL')}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-label-md transition-all cursor-pointer border ${
+                selectedCategory === 'ALL'
+                  ? 'bg-primary border-primary text-white shadow-sm font-semibold'
+                  : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+              }`}
+            >
+              All Items
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-label-md transition-all cursor-pointer border ${
+                  selectedCategory === cat.id
+                    ? 'bg-primary border-primary text-white shadow-sm font-semibold'
+                    : 'bg-surface-container-lowest border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                }`}
               >
-                <option value="ALL">All Availabilities</option>
-                <option value="AVAILABLE">Available Now</option>
-                <option value="RESERVED">On Hold / Reserved</option>
-                <option value="SOLD">Sold Out</option>
-              </select>
-            </div>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Availability Filters (Horizontal Row) */}
+          <div className="flex justify-center gap-1.5 text-[9px] uppercase tracking-wider font-semibold">
+            {[
+              { label: 'All Pieces', value: 'ALL' },
+              { label: 'Available Now', value: 'AVAILABLE' },
+              { label: 'On Hold', value: 'RESERVED' },
+              { label: 'Sold', value: 'SOLD' }
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedStatus(opt.value)}
+                className={`px-3 py-1 rounded-full transition-colors cursor-pointer border ${
+                  selectedStatus === opt.value
+                    ? 'bg-primary/10 text-primary border-primary/20 font-bold'
+                    : 'bg-transparent text-outline border-transparent hover:bg-surface-container-low'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </section>
 
