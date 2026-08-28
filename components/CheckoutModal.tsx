@@ -77,7 +77,7 @@ export default function CheckoutModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-[150] p-4 animate-fade-in">
       <div className="w-full max-w-md bg-white border border-[#E4C8CF] rounded-2xl shadow-2xl p-6 md:p-8 space-y-6 relative max-h-[90vh] overflow-y-auto">
         
         {/* Header */}

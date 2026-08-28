@@ -149,11 +149,13 @@ export default function ShopClient({
       setCheckoutMode('CART');
       setCheckoutProduct(null);
       setIsCheckoutOpen(true);
+      setIsCartOpen(false); // Close cart drawer so checkout modal is visible
       return;
     }
 
     if (cart.length === 0) return;
     
+    setIsCartOpen(false); // Close cart drawer when starting payment process
     setIsCartCheckingOut(true);
     try {
       const items = cart.map(item => ({ productId: item.id, quantity: item.quantity }));
