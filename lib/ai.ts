@@ -87,7 +87,7 @@ export async function suggestProductDetails(
   // Remove duplicates while keeping order
   const uniqueModels = Array.from(new Set(modelsToTry));
 
-  let lastError: any = null;
+  const errors: string[] = [];
   for (const model of uniqueModels) {
     try {
       console.log(`Generating product suggestions using model: ${model}`);
@@ -127,12 +127,13 @@ export async function suggestProductDetails(
 
       return JSON.parse(responseText.trim());
     } catch (err: any) {
-      console.warn(`Gemini model ${model} failed:`, err.message || err);
-      lastError = err;
+      const errMsg = err.message || JSON.stringify(err);
+      console.warn(`Gemini model ${model} failed:`, errMsg);
+      errors.push(`${model}: ${errMsg}`);
     }
   }
 
-  throw lastError || new Error('All configured Gemini models failed.');
+  throw new Error(`All Gemini models failed. Details: [${errors.join(' | ')}]`);
 }
 
 export interface AISuggestedReplies {
