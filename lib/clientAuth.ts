@@ -113,9 +113,5 @@ export async function getCurrentCustomer() {
 
 export async function clearCustomerSession() {
   const cookieStore = await cookies();
-  cookieStore.set(CLIENT_COOKIE_NAME, '', {
-    path: '/',
-    expires: new Date(0),
-    maxAge: 0,
-  });
+  cookieStore.delete(CLIENT_COOKIE_NAME);
 }

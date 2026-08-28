@@ -29,6 +29,7 @@ export function proxy(request: NextRequest) {
     path === '/login' ||
     path.startsWith('/admin/login') ||
     path.startsWith('/dashboard') ||
+    (path.startsWith('/orders/') && path.endsWith('/receipt')) ||
     path.startsWith('/p/') ||
     path.startsWith('/api/public/') ||
     path.startsWith('/api/webhooks/') || // webhook routes must be public
