@@ -80,10 +80,9 @@ export async function suggestProductDetails(
 
   const modelsToTry = [
     process.env.GEMINI_MODEL,
-    'gemini-1.5-flash',
     'gemini-2.0-flash',
-    'gemini-2.5-flash'
-  ].filter((m): m is string => !!m);
+    'gemini-1.5-flash'
+  ].filter((m): m is string => !!m && m !== 'gemini-2.5-flash');
 
   // Remove duplicates while keeping order
   const uniqueModels = Array.from(new Set(modelsToTry));
@@ -171,7 +170,7 @@ export async function generateSuggestedReplies(
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
   const prompt = `
     You are an elite boutique sales co-pilot for "Jawhara".
@@ -195,9 +194,9 @@ export async function generateSuggestedReplies(
 
   const modelsToTry = [
     process.env.GEMINI_MODEL,
-    'gemini-3.6-flash',
+    'gemini-2.0-flash',
     'gemini-1.5-flash'
-  ].filter((m): m is string => !!m);
+  ].filter((m): m is string => !!m && m !== 'gemini-2.5-flash' && m !== 'gemini-3.6-flash');
 
   const uniqueModels = Array.from(new Set(modelsToTry));
 
