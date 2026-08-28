@@ -88,6 +88,26 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md py-10 print:py-0 print:bg-white print:text-black">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A4;
+            margin: 20mm;
+          }
+          body {
+            background-color: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-no-border {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+        }
+      `}} />
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         
         {/* Navigation Bar (Hidden in Print) */}
@@ -101,7 +121,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
         </div>
 
         {/* Invoice Container */}
-        <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-6 sm:p-10 shadow-sm print:shadow-none print:border-none print:p-0">
+        <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-6 sm:p-10 shadow-sm print:shadow-none print:border-none print:p-0 print-no-border">
           
           {/* Invoice Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-outline-variant/20 pb-8">
@@ -211,7 +231,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
                           <img
                             src={img}
                             alt={item.product.name}
-                            className="w-10 h-12 object-cover bg-surface-container-low rounded print:hidden"
+                            className="w-10 h-12 object-cover bg-surface-container-low rounded shrink-0"
                           />
                           <div>
                             <p className="font-semibold text-on-surface print:text-black">{item.product.name}</p>
@@ -251,8 +271,10 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
 
           {/* Footer Note */}
           <div className="mt-16 text-center border-t border-outline-variant/10 pt-6 text-[10px] text-outline print:text-black leading-relaxed">
-            <p>Thank you for shopping with Maison Jawhara.</p>
-            <p className="mt-1">For any bespoke custom inquiries or order adjustments, contact our lookbook concierge directly on WhatsApp.</p>
+            <p className="font-semibold text-primary print:text-black">Thank you for shopping with Jawhara.</p>
+            <p className="mt-1.5 text-on-surface-variant/80 print:text-black">
+              For any bespoke custom inquiries or order adjustments, contact our lookbook concierge directly on WhatsApp: <strong className="text-primary print:text-black font-semibold">+91 7016527673</strong>
+            </p>
           </div>
 
         </div>
