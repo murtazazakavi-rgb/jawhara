@@ -460,24 +460,13 @@ export default function ShopClient({
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md flex flex-col relative overflow-x-hidden">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      {/* Admin preview banner */}
-      {isAdmin && (
-        <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4 text-center text-xs font-semibold text-primary flex items-center justify-center gap-2 relative z-50 animate-fade-in shrink-0">
-          <span className="material-symbols-outlined text-[16px] text-primary">visibility</span>
-          <span>Viewing boutique Lookbook in Customer Mode.</span>
-          <Link href="/admin" className="underline hover:text-primary-hover font-bold ml-1 flex items-center gap-0.5">
-            Back to Admin Panel
-            <span className="material-symbols-outlined text-sm">arrow_forward</span>
-          </Link>
-        </div>
-      )}
 
       {/* Rose Watermark background */}
       <div className="fixed inset-0 rose-watermark opacity-[0.02] z-0 pointer-events-none"></div>
 
       {/* Header bar */}
       <header className="w-full py-6 border-b border-outline-variant/20 bg-surface-container-lowest z-10 sticky top-0 shadow-sm">
-        <div className="max-w-container-max mx-auto px-4 sm:px-6 md:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="max-w-container-max mx-auto px-5 sm:px-6 md:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <Link href="/" className="flex flex-col items-center sm:items-start text-center sm:text-left group cursor-pointer">
             <span className="font-display font-semibold text-2xl tracking-widest uppercase text-primary group-hover:opacity-80 transition-opacity">
               Jawhara
@@ -502,29 +491,14 @@ export default function ShopClient({
             </button>
 
             {activeCustomer ? (
-              <div className="flex items-center gap-4">
-                <div className="text-right hidden md:block">
-                  <p className="text-[9px] font-label-md text-outline uppercase tracking-widest leading-none mb-0.5">Signed In As</p>
-                  <p className="font-semibold text-xs text-on-surface leading-tight">{activeCustomer.name}</p>
-                </div>
-                
-                <div className="flex items-center gap-2.5 border-l border-outline-variant/30 pl-4">
-                  <Link
-                    href="/dashboard"
-                    className="text-[10px] font-label-md uppercase tracking-wider text-primary hover:underline flex items-center gap-1.5 font-semibold"
-                  >
-                    <span className="material-symbols-outlined text-xs">dashboard</span>
-                    Dashboard
-                  </Link>
-                  <span className="text-outline-variant/50 text-xs">|</span>
-                  <button
-                    onClick={handleLogout}
-                    className="text-[10px] font-label-md uppercase tracking-wider text-error hover:underline flex items-center gap-1.5 font-semibold cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-xs">logout</span>
-                    Sign Out
-                  </button>
-                </div>
+              <div className="flex items-center gap-3 border-l border-outline-variant/30 pl-4">
+                <button
+                  onClick={handleLogout}
+                  className="text-[10px] font-label-md uppercase tracking-wider text-error hover:underline flex items-center gap-1.5 font-semibold cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xs">logout</span>
+                  Sign Out
+                </button>
               </div>
             ) : (
               <Link
@@ -540,7 +514,7 @@ export default function ShopClient({
       </header>
 
       {/* Main Container */}
-      <main className="max-w-container-max w-full mx-auto px-4 sm:px-6 md:px-8 py-10 flex-grow relative z-10 space-y-8">
+      <main className="max-w-container-max w-full mx-auto px-5 sm:px-6 md:px-8 py-10 flex-grow relative z-10 space-y-8">
         
         {/* Banner Section */}
         <section className="text-center space-y-4 max-w-xl mx-auto py-6">
@@ -603,12 +577,12 @@ export default function ShopClient({
         <section>
           {filteredProducts.length === 0 ? (
             <div className="text-center py-20 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
-              <span className="material-symbols-outlined text-outline/30 text-6xl mb-4">folder_open</span>
+               <span className="material-symbols-outlined text-outline/30 text-6xl mb-4">folder_open</span>
               <h3 className="font-headline-md text-lg text-on-surface mb-1">No pieces found matching filters.</h3>
               <p className="font-body-md text-xs text-on-surface-variant">Try adjusting your filters or search terms.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {filteredProducts.map((p) => {
                 const mainImg = p.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300';
                 
@@ -676,8 +650,8 @@ export default function ShopClient({
                     </Link>
 
                     {/* Action bar */}
-                    <div className="px-3 pb-3.5 flex flex-col gap-2 border-t border-outline-variant/10 pt-2.5">
-                      <div className="flex justify-between items-center px-0.5">
+                    <div className="px-4 pb-4 flex flex-col gap-2.5 border-t border-outline-variant/10 pt-3">
+                      <div className="flex justify-between items-center px-0.5 mb-0.5">
                         <span className="text-[10px] font-label-sm text-outline uppercase tracking-wider">Price</span>
                         <span className="font-headline-sm text-primary text-sm font-bold">
                           ₹{p.price.toLocaleString('en-IN')}
@@ -685,41 +659,40 @@ export default function ShopClient({
                       </div>
                       
                       {isAvailable ? (
-                        <div className="flex flex-col gap-1.5 w-full">
-                          <div className="flex gap-1.5 w-full">
+                        <div className="flex flex-col gap-2 w-full">
+                          <div className="flex gap-2 w-full">
                             <button
                               onClick={() => triggerBuyNow(p)}
-                              className="flex-grow bg-primary text-white text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:opacity-90 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                              className="flex-[2] bg-primary text-white text-[10px] font-label-md uppercase tracking-wider py-2 rounded-full hover:opacity-90 cursor-pointer flex items-center justify-center gap-1.5 z-20 transition-all font-semibold shadow-xs"
                             >
-                              <span className="material-symbols-outlined text-[11px]">shopping_cart</span>
                               Buy Now
                             </button>
                             <button
                               onClick={() => handleAddToCart(p)}
-                              className="flex-grow border border-primary/60 text-primary text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:bg-primary/5 cursor-pointer flex items-center justify-center gap-1 z-20 transition-all font-semibold"
+                              className="w-9 h-9 shrink-0 border border-primary/60 text-primary rounded-full hover:bg-primary/5 cursor-pointer flex items-center justify-center z-20 transition-all font-semibold"
+                              title="Add to Cart"
                             >
-                              <span className="material-symbols-outlined text-[11px]">add_shopping_cart</span>
-                              Add Cart
+                              <span className="material-symbols-outlined text-[16px]">add_shopping_cart</span>
                             </button>
                           </div>
                           <button
                             onClick={() => handleReserve(p.id)}
-                            className="w-full border border-outline/40 text-on-surface-variant text-[9px] font-label-md uppercase tracking-wider py-1.5 rounded-lg hover:bg-surface-container-low cursor-pointer flex items-center justify-center gap-1 z-20 transition-all"
+                            className="w-full border border-outline/35 text-on-surface-variant text-[10px] font-label-md uppercase tracking-wider py-2 rounded-full hover:bg-surface-container-low cursor-pointer flex items-center justify-center gap-1.5 z-20 transition-all"
                           >
-                            <span className="material-symbols-outlined text-[11px]">lock</span>
+                            <span className="material-symbols-outlined text-[14px]">lock</span>
                             Hold (20m)
                           </button>
                         </div>
                       ) : isReserved ? (
-                        <div className="text-center w-full py-1.5 bg-error/5 border border-error/15 rounded-lg">
-                          <span className="text-[9px] font-label-md text-error uppercase tracking-wider flex items-center justify-center gap-1 font-semibold">
-                            <span className="material-symbols-outlined text-[11px]">schedule</span>
+                        <div className="text-center w-full py-2 bg-error/5 border border-error/15 rounded-full">
+                          <span className="text-[10px] font-label-md text-error uppercase tracking-wider flex items-center justify-center gap-1.5 font-semibold">
+                            <span className="material-symbols-outlined text-[13px]">schedule</span>
                             On Hold ({timers[p.id] || 'Reserved'})
                           </span>
                         </div>
                       ) : (
-                        <div className="text-center w-full py-1.5 bg-surface-container-low border border-outline-variant/20 rounded-lg">
-                          <span className="text-[9px] font-label-md text-outline uppercase tracking-wider font-semibold">
+                        <div className="text-center w-full py-2 bg-surface-container-low border border-outline-variant/20 rounded-full">
+                          <span className="text-[10px] font-label-md text-outline uppercase tracking-wider font-semibold">
                             Sold Out
                           </span>
                         </div>

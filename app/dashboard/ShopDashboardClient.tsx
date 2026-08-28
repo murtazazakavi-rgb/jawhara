@@ -481,7 +481,7 @@ export default function ShopDashboardClient({
                       <span className="text-[10px] text-outline ml-3">{new Date(ord.createdAt).toLocaleDateString()}</span>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <span className={`text-[9px] font-label-sm px-2 py-0.5 rounded uppercase border font-semibold ${
                         ord.paymentStatus === 'PAID'
                           ? 'bg-success/10 text-success border-success/20'
@@ -489,6 +489,13 @@ export default function ShopDashboardClient({
                       }`}>
                         {ord.paymentStatus}
                       </span>
+                      <Link
+                        href={`/orders/${ord.id}/receipt`}
+                        className="text-primary hover:text-primary-hover flex items-center gap-0.5 text-[10px] font-label-md uppercase tracking-wider font-semibold border border-primary/25 rounded px-2 py-0.5 hover:bg-primary/5 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">receipt_long</span>
+                        Receipt
+                      </Link>
                     </div>
                   </div>
 

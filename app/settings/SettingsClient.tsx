@@ -8,7 +8,10 @@ import {
   createCategoryAction, 
   toggleCategoryActiveAction,
   createStaffUserAction,
-  deleteStaffUserAction
+  deleteStaffUserAction,
+  createCollectionAction,
+  deleteCollectionAction,
+  toggleCollectionStatusAction
 } from './actions';
 
 interface Template {
@@ -33,6 +36,14 @@ interface Category {
   isActive: boolean;
 }
 
+interface Collection {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  status: string;
+}
+
 interface StaffUser {
   id: string;
   name: string;
@@ -52,6 +63,7 @@ interface SettingsClientProps {
     storage: { status: string; details: string };
   };
   initialCategories: Category[];
+  initialCollections?: Collection[];
   staffUsers?: StaffUser[];
   currentUserRole?: string;
 }
@@ -61,14 +73,31 @@ export default function SettingsClient({
   initialSettings, 
   healthStatus,
   initialCategories,
+  initialCollections = [],
   staffUsers = [],
   currentUserRole = 'ADMIN'
 }: SettingsClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'templates' | 'categories' | 'staff'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'integrations' | 'templates' | 'categories' | 'collections' | 'staff'>('profile');
   const [templates, setTemplates] = useState<Template[]>(initialTemplates);
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  // System settings helper
+  const getSettingVal = (key: string, defaultValue: string) => {
+    return initialSettings.find(s => s.key === key)?.value || defaultValue;
+  };
+
+  // Local draft states for settings profile fields (prevents immediate saves on keypress)
+  const [holdMin, setHoldMin] = useState(getSettingVal('reservationHoldMinutes', '20'));
+  const [expiryMin, setExpiryMin] = useState(getSettingVal('paymentLinkExpiryMinutes', '120'));
+  const [currencyVal, setCurrencyVal] = useState(getSettingVal('currency', 'INR'));
+  const [boutiquePhoneVal, setBoutiquePhoneVal] = useState(getSettingVal('boutiquePhone', '919876543210'));
+  const [adminEmailVal, setAdminEmailVal] = useState(getSettingVal('adminEmail', ''));
+  const [adminWhatsAppVal, setAdminWhatsAppVal] = useState(getSettingVal('adminWhatsAppNumber', ''));
+  const [emailAlertsVal, setEmailAlertsVal] = useState(getSettingVal('enableAdminEmailAlerts', 'true') === 'true');
+  const [whatsappAlertsVal, setWhatsappAlertsVal] = useState(getSettingVal('enableAdminWhatsAppAlerts', 'false') === 'true');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Categories management states
   const [categories, setCategories] = useState<Category[]>(initialCategories);
@@ -76,6 +105,12 @@ export default function SettingsClient({
   const [catCode, setCatCode] = useState('');
   const [catDesc, setCatDesc] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  // Collections management states
+  const [collections, setCollections] = useState<Collection[]>(initialCollections);
+  const [colName, setColName] = useState('');
+  const [colDesc, setColDesc] = useState('');
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
 
   // Staff management states
   const [staffName, setStaffName] = useState('');
@@ -168,32 +203,76 @@ export default function SettingsClient({
   const [langCode, setLangCode] = useState('en');
   const [isEnabled, setIsEnabled] = useState(true);
 
-  // System settings state values
-  const getSettingVal = (key: string, defaultValue: string) => {
-    return settings.find(s => s.key === key)?.value || defaultValue;
+  // Batch save for Boutique Settings Profile
+  const handleSaveProfileSettings = async () => {
+    setIsSavingProfile(true);
+    try {
+      await Promise.all([
+        saveSystemSetting('reservationHoldMinutes', holdMin),
+        saveSystemSetting('paymentLinkExpiryMinutes', expiryMin),
+        saveSystemSetting('currency', currencyVal),
+        saveSystemSetting('boutiquePhone', boutiquePhoneVal),
+        saveSystemSetting('adminEmail', adminEmailVal),
+        saveSystemSetting('adminWhatsAppNumber', adminWhatsAppVal),
+        saveSystemSetting('enableAdminEmailAlerts', emailAlertsVal ? 'true' : 'false'),
+        saveSystemSetting('enableAdminWhatsAppAlerts', whatsappAlertsVal ? 'true' : 'false'),
+      ]);
+      alert('Boutique settings saved successfully!');
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save boutique settings.');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleSaveSetting = async (key: string, val: string) => {
-    setSavingKey(key);
+  // Collections Master Actions
+  const handleToggleCollection = async (id: string, currentStatus: string) => {
     try {
-      const res = await saveSystemSetting(key, val);
+      const nextStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      const res = await toggleCollectionStatusAction(id, nextStatus);
       if (res.error) {
         alert(res.error);
       } else {
-        setSettings(prev => {
-          const index = prev.findIndex(s => s.key === key);
-          if (index > -1) {
-            const updated = [...prev];
-            updated[index] = { key, value: val };
-            return updated;
-          }
-          return [...prev, { key, value: val }];
-        });
+        setCollections(prev => prev.map(c => c.id === id ? { ...c, status: nextStatus } : c));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateCollection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!colName.trim()) return;
+    setIsCreatingCollection(true);
+    try {
+      const res = await createCollectionAction({ name: colName, description: colDesc });
+      if (res.error) {
+        alert(res.error);
+      } else if (res.collection) {
+        setCollections(prev => [...prev, res.collection as Collection]);
+        setColName('');
+        setColDesc('');
       }
     } catch (err) {
       console.error(err);
     } finally {
-      setSavingKey(null);
+      setIsCreatingCollection(false);
+    }
+  };
+
+  const handleDeleteCollection = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this collection?')) return;
+    try {
+      const res = await deleteCollectionAction(id);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        setCollections(prev => prev.filter(c => c.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -315,6 +394,23 @@ export default function SettingsClient({
           </span>
         </button>
 
+        <button 
+          onClick={() => setActiveTab('collections')}
+          className={`w-full text-left p-4 rounded-lg border flex items-center justify-between group transition-colors ${
+            activeTab === 'collections' 
+              ? 'bg-surface-container-low border-outline-variant/50 text-primary' 
+              : 'bg-surface border-transparent text-on-surface-variant hover:bg-surface-container-low'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined">layers</span>
+            <span className="font-label-md text-sm">Boutique Collections</span>
+          </div>
+          <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">
+            chevron_right
+          </span>
+        </button>
+
         {(currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
           <button 
             onClick={() => setActiveTab('staff')}
@@ -340,7 +436,7 @@ export default function SettingsClient({
         
         {/* TAB 1: BOUTIQUE PROFILE */}
         {activeTab === 'profile' && (
-          <section className="bg-surface-container-lowest rounded-xl p-6 md:p-8 border border-outline-variant/30 shadow-sm space-y-8">
+          <section className="bg-surface-container-lowest rounded-xl p-6 md:p-8 border border-outline-variant/30 shadow-sm space-y-8 animate-fade-in">
             <h2 className="font-display font-medium text-headline-sm text-primary border-b border-outline-variant/20 pb-4">
               Boutique Settings
             </h2>
@@ -353,9 +449,8 @@ export default function SettingsClient({
                 <input
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="number"
-                  disabled={savingKey === 'reservationHoldMinutes'}
-                  value={getSettingVal('reservationHoldMinutes', '20')}
-                  onChange={(e) => handleSaveSetting('reservationHoldMinutes', e.target.value)}
+                  value={holdMin}
+                  onChange={(e) => setHoldMin(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -365,9 +460,8 @@ export default function SettingsClient({
                 <input
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="number"
-                  disabled={savingKey === 'paymentLinkExpiryMinutes'}
-                  value={getSettingVal('paymentLinkExpiryMinutes', '120')}
-                  onChange={(e) => handleSaveSetting('paymentLinkExpiryMinutes', e.target.value)}
+                  value={expiryMin}
+                  onChange={(e) => setExpiryMin(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-2 md:col-span-2">
@@ -377,9 +471,8 @@ export default function SettingsClient({
                 <input
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="text"
-                  disabled={savingKey === 'currency'}
-                  value={getSettingVal('currency', 'INR')}
-                  onChange={(e) => handleSaveSetting('currency', e.target.value)}
+                  value={currencyVal}
+                  onChange={(e) => setCurrencyVal(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-2 md:col-span-2">
@@ -390,9 +483,8 @@ export default function SettingsClient({
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="text"
                   placeholder="e.g. 919876543210"
-                  disabled={savingKey === 'boutiquePhone'}
-                  value={getSettingVal('boutiquePhone', '919876543210')}
-                  onChange={(e) => handleSaveSetting('boutiquePhone', e.target.value)}
+                  value={boutiquePhoneVal}
+                  onChange={(e) => setBoutiquePhoneVal(e.target.value)}
                 />
               </div>
 
@@ -409,10 +501,9 @@ export default function SettingsClient({
                 <input
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="email"
-                  placeholder="admin@maisonjawhara.com"
-                  disabled={savingKey === 'adminEmail'}
-                  value={getSettingVal('adminEmail', '')}
-                  onChange={(e) => handleSaveSetting('adminEmail', e.target.value)}
+                  placeholder="admin@jawhara.com"
+                  value={adminEmailVal}
+                  onChange={(e) => setAdminEmailVal(e.target.value)}
                 />
               </div>
 
@@ -424,9 +515,8 @@ export default function SettingsClient({
                   className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 px-0 font-body-md text-body-md outline-none transition-colors"
                   type="text"
                   placeholder="e.g. 919876543210"
-                  disabled={savingKey === 'adminWhatsAppNumber'}
-                  value={getSettingVal('adminWhatsAppNumber', '')}
-                  onChange={(e) => handleSaveSetting('adminWhatsAppNumber', e.target.value)}
+                  value={adminWhatsAppVal}
+                  onChange={(e) => setAdminWhatsAppVal(e.target.value)}
                 />
               </div>
 
@@ -435,9 +525,8 @@ export default function SettingsClient({
                   <input
                     type="checkbox"
                     className="accent-primary"
-                    disabled={savingKey === 'enableAdminEmailAlerts'}
-                    checked={getSettingVal('enableAdminEmailAlerts', 'true') === 'true'}
-                    onChange={(e) => handleSaveSetting('enableAdminEmailAlerts', e.target.checked ? 'true' : 'false')}
+                    checked={emailAlertsVal}
+                    onChange={(e) => setEmailAlertsVal(e.target.checked)}
                   />
                   <span className="font-body-md text-sm text-on-surface">Enable Admin Email Alerts</span>
                 </label>
@@ -448,13 +537,24 @@ export default function SettingsClient({
                   <input
                     type="checkbox"
                     className="accent-primary"
-                    disabled={savingKey === 'enableAdminWhatsAppAlerts'}
-                    checked={getSettingVal('enableAdminWhatsAppAlerts', 'true') === 'true'}
-                    onChange={(e) => handleSaveSetting('enableAdminWhatsAppAlerts', e.target.checked ? 'true' : 'false')}
+                    checked={whatsappAlertsVal}
+                    onChange={(e) => setWhatsappAlertsVal(e.target.checked)}
                   />
                   <span className="font-body-md text-sm text-on-surface">Enable Admin WhatsApp Alerts</span>
                 </label>
               </div>
+            </div>
+
+            {/* Save Settings Button */}
+            <div className="border-t border-outline-variant/20 pt-6 flex justify-end">
+              <button
+                onClick={handleSaveProfileSettings}
+                disabled={isSavingProfile}
+                className="px-6 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-label-md text-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isSavingProfile ? 'Saving Settings...' : 'Save Settings'}
+                <span className="material-symbols-outlined text-sm">save</span>
+              </button>
             </div>
           </section>
         )}
@@ -763,6 +863,125 @@ export default function SettingsClient({
                   className="px-6 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-label-md text-sm flex items-center gap-2 cursor-pointer"
                 >
                   {isCreatingCategory ? 'Creating...' : 'Create Category'}
+                  <span className="material-symbols-outlined text-sm">add</span>
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {/* TAB: BOUTIQUE COLLECTIONS */}
+        {activeTab === 'collections' && (
+          <section className="bg-surface-container-lowest rounded-xl p-6 md:p-8 border border-outline-variant/30 shadow-sm space-y-8 animate-fade-in">
+            <div>
+              <h2 className="font-display font-medium text-headline-sm text-primary border-b border-outline-variant/20 pb-4">
+                Boutique Collections Master
+              </h2>
+              <p className="text-on-surface-variant/80 text-xs mt-2">
+                Manage your product collections (e.g. "Mehr-e-Bahar", "Noor", "Gulnaar"). Collections group products visually in client lookbooks.
+              </p>
+            </div>
+
+            {/* Existing Collections List */}
+            <div className="space-y-4">
+              <h3 className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider">
+                Current Collections
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-3">
+                {collections.length === 0 ? (
+                  <p className="text-xs text-on-surface-variant italic">No collections created yet.</p>
+                ) : (
+                  collections.map((col) => (
+                    <div 
+                      key={col.id} 
+                      className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border border-outline-variant/30 rounded-lg bg-surface-container-low/20 gap-4"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-label-md text-sm text-on-surface font-semibold">{col.name}</span>
+                          <span className="text-[10px] font-mono text-outline">
+                            Slug: /{col.slug}
+                          </span>
+                        </div>
+                        {col.description && (
+                          <p className="font-body-sm text-xs text-on-surface-variant mt-1">
+                            {col.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full ${
+                          col.status === 'ACTIVE' 
+                            ? 'bg-success/15 text-success font-semibold' 
+                            : 'bg-outline-variant/30 text-outline-variant'
+                        }`}>
+                          {col.status}
+                        </span>
+                        <button
+                          onClick={() => handleToggleCollection(col.id, col.status)}
+                          className={`text-xs px-3 py-1 rounded border transition-colors cursor-pointer ${
+                            col.status === 'ACTIVE' 
+                              ? 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low' 
+                              : 'border-success text-success hover:bg-success/5'
+                          }`}
+                        >
+                          {col.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCollection(col.id)}
+                          className="text-xs px-3 py-1 rounded border border-error text-error hover:bg-error/5 transition-colors cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Create New Collection Form */}
+            <div className="border-t border-outline-variant/20 pt-6">
+              <h3 className="font-label-md text-xs text-on-surface-variant uppercase tracking-wider mb-4">
+                Add New Collection
+              </h3>
+              
+              <form onSubmit={handleCreateCollection} className="space-y-4 max-w-xl">
+                <div className="flex flex-col gap-2">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                    Collection Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Bahar Collection"
+                    value={colName}
+                    onChange={(e) => setColName(e.target.value)}
+                    className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                    Description
+                  </label>
+                  <textarea
+                    placeholder="Short collection lookbook description..."
+                    value={colDesc}
+                    onChange={(e) => setColDesc(e.target.value)}
+                    rows={2}
+                    className="bg-transparent border border-outline-variant/50 rounded p-2 focus:border-primary outline-none font-body-md text-body-md transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isCreatingCollection}
+                  className="px-6 py-2.5 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity font-label-md text-sm flex items-center gap-2 cursor-pointer"
+                >
+                  {isCreatingCollection ? 'Creating...' : 'Create Collection'}
                   <span className="material-symbols-outlined text-sm">add</span>
                 </button>
               </form>

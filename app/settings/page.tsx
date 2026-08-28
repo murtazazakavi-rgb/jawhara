@@ -27,6 +27,11 @@ export default async function SettingsPage() {
     orderBy: { name: 'asc' },
   });
 
+  // Fetch collections
+  const collections = await prisma.collection.findMany({
+    orderBy: { name: 'asc' },
+  });
+
   // 3. Fetch latest chat metrics for health telemetry
   const lastInboundMsg = await prisma.whatsAppMessage.findFirst({
     where: { direction: MessageDirection.INBOUND },
@@ -122,6 +127,7 @@ export default async function SettingsPage() {
         initialSettings={settings}
         initialTemplates={templates}
         initialCategories={categories}
+        initialCollections={collections}
         healthStatus={healthStatus}
         staffUsers={staffUsers}
         currentUserRole={user.role}

@@ -61,7 +61,7 @@ export default function CheckoutModal({
     if (deliveryMethod === 'DELIVERY') {
       notes = `Method: Home Delivery\nAddress: ${address.trim()}\nCity: ${city.trim()}\nPincode: ${pincode.trim()}\nDelivery Charges: To be calculated and billed extra.`;
     } else {
-      notes = `Method: Self-Pickup from Boutique\nPickup Location: Maison Jawhara Boutique, Mumbai\nDelivery Charges: Free`;
+      notes = `Method: Self-Pickup from Boutique\nPickup Location: Jawhara Boutique, Mumbai\nDelivery Charges: Free`;
     }
 
     const guestInfo = showGuestFields ? {
@@ -253,7 +253,7 @@ export default function CheckoutModal({
                 Boutique Address
               </p>
               <p className="text-xs text-on-surface leading-relaxed font-semibold">
-                Maison Jawhara Boutique
+                Jawhara Boutique
               </p>
               <p className="text-[11px] text-on-surface-variant leading-relaxed">
                 Colaba Causeway, Mumbai, Maharashtra 400001

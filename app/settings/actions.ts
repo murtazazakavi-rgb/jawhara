@@ -230,3 +230,98 @@ export async function deleteStaffUserAction(targetId: string) {
   }
 }
 
+/**
+ * Creates a new boutique collection.
+ */
+export async function createCollectionAction(data: {
+  name: string;
+  description?: string;
+  coverImage?: string;
+}) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  if (!data.name.trim()) {
+    return { error: 'Collection name is required.' };
+  }
+
+  const slug = data.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+  try {
+    const collection = await prisma.collection.create({
+      data: {
+        name: data.name.trim(),
+        slug,
+        description: data.description?.trim() || null,
+        coverImage: data.coverImage?.trim() || null,
+        status: 'ACTIVE',
+      },
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/products/add');
+    return { success: true, collection };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to create collection. Ensure the name is unique.' };
+  }
+}
+
+/**
+ * Toggles the active status of a collection.
+ */
+export async function toggleCollectionStatusAction(id: string, status: string) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    await prisma.collection.update({
+      where: { id },
+      data: { status },
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/products/add');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to update collection status.' };
+  }
+}
+
+/**
+ * Deletes a collection.
+ */
+export async function deleteCollectionAction(id: string) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    // Check if any products are linked to this collection
+    const productCount = await prisma.product.count({
+      where: { collectionId: id },
+    });
+    if (productCount > 0) {
+      return { error: 'Cannot delete collection because it has products linked to it.' };
+    }
+
+    await prisma.collection.delete({
+      where: { id },
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/products/add');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to delete collection.' };
+  }
+}
+

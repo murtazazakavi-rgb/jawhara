@@ -343,6 +343,14 @@ export default function ProductDetailsClient({
             Share on WhatsApp
           </button>
 
+          <button
+            onClick={() => window.print()}
+            className="flex-1 border border-primary text-primary py-4 px-6 rounded font-label-md uppercase tracking-wider hover:bg-primary/5 transition-colors flex justify-center items-center gap-2 cursor-pointer"
+          >
+            <span className="material-symbols-outlined">print</span>
+            Print Price Tag
+          </button>
+
           {isAvailable && (
             <button
               onClick={() => setIsReserveOpen(true)}
@@ -597,6 +605,65 @@ export default function ProductDetailsClient({
           </div>
         </div>
       )}
+
+      {/* Printable Price Tag (Only visible when printing) */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-4 text-black font-sans text-xs select-none">
+        <div className="border border-dashed border-black p-3 rounded w-[2.5in] h-[1.5in] flex flex-col justify-between mx-auto bg-white">
+          {/* Header */}
+          <div className="flex justify-between items-start border-b border-black pb-1">
+            <span className="font-serif font-bold text-sm tracking-wider uppercase">Jawhara</span>
+            <span className="text-[8px] font-mono font-bold">{product.productCode}</span>
+          </div>
+
+          {/* Body */}
+          <div className="flex gap-2 items-center flex-grow py-1">
+            {/* QR Code */}
+            <div className="w-12 h-12 shrink-0">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/p/${product.slug}`)}`}
+                alt="Product QR Link"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            {/* Details */}
+            <div className="flex-grow flex flex-col justify-center min-w-0">
+              <span className="font-bold text-[9px] truncate">{product.name}</span>
+              <span className="text-[7px] text-gray-700 capitalize truncate">Category: {product.category?.name}</span>
+              {product.primaryColour && (
+                <span className="text-[7px] text-gray-700 truncate">Colour: {product.primaryColour}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between items-baseline border-t border-black pt-1">
+            <span className="text-[6px] text-gray-500 font-bold tracking-widest uppercase">Handcrafted luxury</span>
+            <span className="font-bold text-xs">₹{product.price.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .print\\:block, .print\\:block * {
+            visibility: visible !important;
+          }
+          .print\\:block {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background: white !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+        }
+      ` }} />
     </div>
   );
 }

@@ -41,6 +41,18 @@ export default async function DashboardPage() {
     where: { status: 'PENDING' },
   });
 
+  const packingCount = await prisma.order.count({
+    where: { status: 'PACKING' },
+  });
+
+  const unpaidCount = await prisma.order.count({
+    where: { status: 'PENDING', paymentStatus: 'UNPAID' },
+  });
+
+  const returnedCount = await prisma.order.count({
+    where: { status: 'RETURNED' },
+  });
+
   // 2. Fetch Attention Items
   // Active reservations
   const activeReservations = await prisma.reservation.findMany({
@@ -133,6 +145,71 @@ export default async function DashboardPage() {
           <div className="absolute right-3 bottom-3 opacity-10">
             <span className="material-symbols-outlined text-[48px]">shopping_bag</span>
           </div>
+        </div>
+      </section>
+
+      {/* Action Center Grid */}
+      <section className="mb-12">
+        <h2 className="font-headline-md text-on-surface mb-6 flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary">pending_actions</span>
+          Boutique Action Center
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <Link
+            href="/orders?status=PACKING"
+            className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-all flex flex-col justify-between h-32 group cursor-pointer"
+          >
+            <div className="flex justify-between items-center w-full">
+              <span className="material-symbols-outlined text-primary text-[28px]">inventory_2</span>
+              <span className="material-symbols-outlined text-outline/40 group-hover:text-primary text-[20px] transition-colors">arrow_forward</span>
+            </div>
+            <div>
+              <p className="font-display-lg text-primary text-3xl font-bold">{packingCount}</p>
+              <p className="text-[10px] font-label-sm uppercase tracking-wider text-on-surface-variant font-bold mt-1">Packing Required</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/orders?status=PACKING"
+            className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-all flex flex-col justify-between h-32 group cursor-pointer"
+          >
+            <div className="flex justify-between items-center w-full">
+              <span className="material-symbols-outlined text-primary text-[28px]">local_shipping</span>
+              <span className="material-symbols-outlined text-outline/40 group-hover:text-primary text-[20px] transition-colors">arrow_forward</span>
+            </div>
+            <div>
+              <p className="font-display-lg text-primary text-3xl font-bold">{packingCount}</p>
+              <p className="text-[10px] font-label-sm uppercase tracking-wider text-on-surface-variant font-bold mt-1">Dispatch Required</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/orders?status=PENDING"
+            className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-all flex flex-col justify-between h-32 group cursor-pointer"
+          >
+            <div className="flex justify-between items-center w-full">
+              <span className="material-symbols-outlined text-error text-[28px]">payments</span>
+              <span className="material-symbols-outlined text-outline/40 group-hover:text-error text-[20px] transition-colors">arrow_forward</span>
+            </div>
+            <div>
+              <p className="font-display-lg text-error text-3xl font-bold">{unpaidCount}</p>
+              <p className="text-[10px] font-label-sm uppercase tracking-wider text-on-surface-variant font-bold mt-1">Unpaid Invoices</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/orders?status=RETURNED"
+            className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-all flex flex-col justify-between h-32 group cursor-pointer"
+          >
+            <div className="flex justify-between items-center w-full">
+              <span className="material-symbols-outlined text-on-surface-variant text-[28px]">assignment_return</span>
+              <span className="material-symbols-outlined text-outline/40 group-hover:text-on-surface text-[20px] transition-colors">arrow_forward</span>
+            </div>
+            <div>
+              <p className="font-display-lg text-on-surface text-3xl font-bold">{returnedCount}</p>
+              <p className="text-[10px] font-label-sm uppercase tracking-wider text-on-surface-variant font-bold mt-1">Returns Processing</p>
+            </div>
+          </Link>
         </div>
       </section>
 

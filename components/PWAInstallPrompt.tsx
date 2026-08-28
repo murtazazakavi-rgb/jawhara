@@ -121,7 +121,7 @@ export default function PWAInstallPrompt() {
             </div>
             
             <p className="text-xs text-on-surface-variant leading-relaxed text-left">
-              Safari on iOS does not support programmatic one-click installs. Follow these quick steps to add Maison Jawhara to your home screen:
+              Safari on iOS does not support programmatic one-click installs. Follow these quick steps to add Jawhara to your home screen:
             </p>
 
             <div className="space-y-3.5 text-left py-2 text-xs text-on-surface">

@@ -191,7 +191,11 @@ export async function GET(
 
               if (res.ok) {
                 payBtn.style.display = 'none';
+                successMsg.textContent = 'Payment simulated successfully! Redirecting to receipt...';
                 successMsg.style.display = 'block';
+                setTimeout(() => {
+                  window.location.href = '/orders/${order.id}/receipt';
+                }, 1500);
               } else {
                 alert('Webhook simulation failed.');
                 payBtn.disabled = false;

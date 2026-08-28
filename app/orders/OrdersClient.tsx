@@ -18,6 +18,20 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const statusParam = params.get('status');
+      if (statusParam) {
+        setStatusTab(statusParam);
+      }
+      const searchParam = params.get('search');
+      if (searchParam) {
+        setSearchTerm(searchParam);
+      }
+    }
+  }, []);
+
   // Status transitions
   const handleStatusChange = (orderId: string, status: any) => {
     startTransition(async () => {
@@ -168,34 +182,55 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
                 <div
                   key={order.id}
                   onClick={() => setSelectedOrder(order)}
-                  className="bg-surface border border-outline-variant/20 rounded-lg p-5 md:px-6 md:py-4 hover:shadow-md transition-all cursor-pointer flex flex-col md:grid md:grid-cols-12 md:items-center gap-4"
+                  className="bg-surface border border-outline-variant/20 rounded-lg py-2.5 px-4 md:px-5 hover:shadow-md transition-all cursor-pointer flex flex-col md:grid md:grid-cols-12 md:items-center gap-3 text-xs"
                 >
                   <div className="md:col-span-2">
-                    <span className="font-headline-sm text-sm text-primary block">{order.orderNumber}</span>
-                    <span className="text-[10px] text-outline block mt-0.5">
+                    <span className="font-headline-sm text-xs text-primary block font-semibold">{order.orderNumber}</span>
+                    <span className="text-[9px] text-outline block mt-0.5">
                       {new Date(order.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="md:col-span-3">
-                    <p className="font-label-md text-sm text-on-surface">{order.customer.name}</p>
-                    <p className="font-body-sm text-xs text-on-surface-variant">{order.customer.mobile}</p>
+                    <p className="font-label-md text-xs text-on-surface font-semibold">{order.customer.name}</p>
+                    <p className="font-body-sm text-[10px] text-on-surface-variant">{order.customer.mobile}</p>
                   </div>
-                  <div className="md:col-span-3">
-                    <p className="font-body-sm text-sm text-on-surface-variant truncate">{itemSummary}</p>
-                    <span className="bg-surface-container-high text-on-surface-variant text-[9px] font-label-sm px-2 py-0.5 rounded uppercase tracking-wider border border-outline-variant/20 mt-1 inline-block">
-                      {order.status}
-                    </span>
+                  <div className="md:col-span-3 flex flex-col items-start">
+                    <p className="font-body-sm text-xs text-on-surface-variant truncate max-w-full">{itemSummary}</p>
+                    <select
+                      value={order.status}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleStatusChange(order.id, e.target.value);
+                      }}
+                      className="bg-surface-container-high text-on-surface-variant text-[9px] font-label-sm px-1.5 py-0.5 rounded uppercase tracking-wider border border-outline-variant/35 cursor-pointer outline-none focus:border-primary font-bold mt-1"
+                    >
+                      <option value="PENDING">PENDING</option>
+                      <option value="PACKING">PACKING</option>
+                      <option value="DISPATCHED">DISPATCHED</option>
+                      <option value="DELIVERED">DELIVERED</option>
+                      <option value="RETURNED">RETURNED</option>
+                    </select>
                   </div>
                   <div className="md:col-span-2 flex items-center gap-2">
-                    <span className={`text-[10px] font-label-sm px-2.5 py-0.5 rounded-full border ${
-                      order.paymentStatus === 'PAID'
-                        ? 'bg-primary-container/10 text-primary-container border-primary-container/20'
-                        : 'bg-error-container/20 text-on-error-container border-error-container/10'
-                    }`}>
-                      {order.paymentStatus}
-                    </span>
+                    <select
+                      value={order.paymentStatus}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handlePaymentChange(order.id, e.target.value);
+                      }}
+                      className={`text-[9px] font-label-sm px-2.5 py-0.5 rounded-full border cursor-pointer outline-none font-bold ${
+                        order.paymentStatus === 'PAID'
+                          ? 'bg-success/15 text-success border-success/30'
+                          : 'bg-error/15 text-error border-error/30'
+                      }`}
+                    >
+                      <option value="PAID">PAID</option>
+                      <option value="UNPAID">UNPAID</option>
+                    </select>
                   </div>
-                  <div className="md:col-span-2 text-right font-headline-sm text-on-surface text-base md:text-lg">
+                  <div className="md:col-span-2 text-right font-headline-sm text-on-surface text-sm md:text-base font-semibold">
                     ₹{order.total.toLocaleString('en-IN')}
                   </div>
                 </div>

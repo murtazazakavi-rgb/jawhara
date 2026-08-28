@@ -43,7 +43,7 @@ export async function suggestProductDetails(
 
   // Initialize new SDK client
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   // Download the image buffer to send to Gemini
   let imageParts: any[] = [];
@@ -66,13 +66,13 @@ export async function suggestProductDetails(
   }
 
   const prompt = `
-    You are an AI assistant helping a premium luxury boutique named "Jawhara" tag and describe their products.
-    Analyze this product image. The category is "${categoryName}".
+    You are a professional luxury fashion copywriter and editorial lookbook editor for a premium boutique named "Jawhara".
+    Analyze the attached product image. The category of the product is "${categoryName}".
     
     Suggest the following details:
-    1. A poetic name for the product (e.g. "Mehr-e-Gul", "Noor", "Gulnaar", "Bahar").
-    2. A short description (one sentence, elegant, e.g. "A graceful sage floral Rida").
-    3. A full product description in luxury fashion style (focus on texture, elegance, and premium nature).
+    1. A poetic name for the product (e.g. "Mehr-e-Bahar", "Noor-e-Jahan", "Gulnaar", "Zariyah", "Shafaq").
+    2. A short description (one elegant sentence. Keep it highly humanized, editorial, and sophisticated, e.g. "A graceful pastel floral Rida featuring intricate satin embroidery").
+    3. A full product description in a luxury, poetic, and high-end editorial lookbook style. Focus on the sensory details: the texture of the fabric, the drape, the craftsmanship of the embroidery, and the sophisticated beauty it evokes. Write like a human fashion editor, avoiding robotic or corporate sounding buzzwords.
     4. A primary colour.
     5. Secondary colours (comma-separated).
     6. Suggestions for category-specific attributes (pardi_style, embroidery_type, fabric, bed_size, material).
@@ -80,8 +80,9 @@ export async function suggestProductDetails(
 
   const modelsToTry = [
     process.env.GEMINI_MODEL,
-    'gemini-3.6-flash',
-    'gemini-1.5-flash'
+    'gemini-1.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash'
   ].filter((m): m is string => !!m);
 
   // Remove duplicates while keeping order

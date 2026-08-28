@@ -66,7 +66,7 @@ export class RazorpayPaymentClient {
         email: false,
       },
       reminder_enable: true,
-      callback_url: `${siteUrl}/orders`,
+      callback_url: `${siteUrl}/orders/${options.orderId}/receipt`,
       callback_method: 'get',
     };
 

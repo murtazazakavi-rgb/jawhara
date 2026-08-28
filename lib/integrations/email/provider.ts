@@ -37,7 +37,7 @@ export async function sendEmail({
   html: string;
 }): Promise<{ success: boolean; error?: string; mock?: boolean }> {
   const transporter = getTransporter();
-  const from = process.env.SMTP_FROM || 'Maison Jawhara <noreply@jawhara-os.com>';
+  const from = process.env.SMTP_FROM || 'Jawhara <noreply@jawhara-os.com>';
 
   if (!transporter) {
     console.log('--- [MOCK EMAIL OUTBOUND] ---');
@@ -100,7 +100,7 @@ export async function sendCustomerReceiptEmail(order: any, customer: any, items:
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid rgba(117, 85, 102, 0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
         <!-- Header banner -->
         <div style="background-color: #755566; padding: 32px; text-align: center; color: #ffffff;">
-          <h1 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 500; letter-spacing: -0.5px;">Maison Jawhara</h1>
+          <h1 style="margin: 0; font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 500; letter-spacing: -0.5px;">Jawhara</h1>
           <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.85; text-transform: uppercase; tracking-wider: 1px;">Order Confirmation & Receipt</p>
         </div>
         
@@ -154,10 +154,9 @@ export async function sendCustomerReceiptEmail(order: any, customer: any, items:
             <a href="${siteUrl}/dashboard" style="display: inline-block; background-color: #755566; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: 600; font-size: 14px; border-radius: 30px; letter-spacing: 0.5px;">View Your Lookbook Dashboard</a>
           </div>
         </div>
-        
         <!-- Footer -->
         <div style="background-color: #F8F4F6; padding: 24px; text-align: center; font-size: 12px; color: #888888; border-top: 1px solid rgba(117, 85, 102, 0.05);">
-          <p style="margin: 0 0 8px 0;">Maison Jawhara Boutique OS · Handcrafted Luxury</p>
+          <p style="margin: 0 0 8px 0;">Jawhara OS · Handcrafted Luxury</p>
           <p style="margin: 0;">If you have any questions or require custom tailoring, chat with us on WhatsApp or reply directly to this email.</p>
         </div>
       </div>
@@ -167,7 +166,7 @@ export async function sendCustomerReceiptEmail(order: any, customer: any, items:
 
   return sendEmail({
     to: customer.email,
-    subject: `Order Receipt - ${order.orderNumber} - Maison Jawhara`,
+    subject: `Order Receipt - ${order.orderNumber} - Jawhara`,
     html,
   });
 }
@@ -236,7 +235,7 @@ export async function sendCustomerPaymentFailedEmail(order: any, customer: any, 
         
         <!-- Footer -->
         <div style="background-color: #F8F4F6; padding: 24px; text-align: center; font-size: 12px; color: #888888; border-top: 1px solid rgba(117, 85, 102, 0.05);">
-          <p style="margin: 0 0 8px 0;">Maison Jawhara Boutique OS</p>
+          <p style="margin: 0 0 8px 0;">Jawhara OS</p>
           <p style="margin: 0;">Need help? Reply to this email or chat with us instantly on WhatsApp.</p>
         </div>
       </div>
@@ -246,7 +245,7 @@ export async function sendCustomerPaymentFailedEmail(order: any, customer: any, 
 
   return sendEmail({
     to: customer.email,
-    subject: `Payment Attempt Failed - ${order.orderNumber} - Maison Jawhara`,
+    subject: `Payment Attempt Failed - ${order.orderNumber} - Jawhara`,
     html,
   });
 }

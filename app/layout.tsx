@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { getCurrentCustomer } from "@/lib/clientAuth";
 
 export const metadata: Metadata = {
   title: "Jawhara OS",
-  description: "Central Operating System for Maison Jawhara",
+  description: "Central Operating System for Jawhara",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const customer = await getCurrentCustomer();
+  const isLoggedIn = !!customer;
+
   return (
     <html lang="en" className="h-full antialiased">
       <head>
@@ -49,7 +53,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-surface text-on-surface pb-16 md:pb-0">
         <PWAInstallPrompt />
         {children}
-        <BottomNav />
+        <BottomNav isLoggedIn={isLoggedIn} />
       </body>
     </html>
   );
