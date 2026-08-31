@@ -9,7 +9,7 @@ import {
   toggleProductPublishStatusAction,
   deleteProductAction
 } from './actions';
-import PriceTag from '@/components/PriceTag';
+import { printPriceTags } from '@/lib/printPriceTags';
 
 interface ProductDetailsClientProps {
   product: any;
@@ -345,11 +345,11 @@ export default function ProductDetailsClient({
           </button>
 
           <button
-            onClick={() => window.print()}
+            onClick={() => printPriceTags([{ product, quantity: 1 }], 'thermal')}
             className="flex-1 border border-primary text-primary py-4 px-6 rounded font-label-md uppercase tracking-wider hover:bg-primary/5 transition-colors flex justify-center items-center gap-2 cursor-pointer"
           >
             <span className="material-symbols-outlined">print</span>
-            Print Price Tag
+            Print Price Tag (1.5″ × 2.5″)
           </button>
 
           {isAvailable && (
@@ -606,47 +606,6 @@ export default function ProductDetailsClient({
           </div>
         </div>
       )}
-
-      {/* Printable Price Tag (Only visible when printing) */}
-      <div 
-        id="single-price-tag-print-area" 
-        className="hidden print:flex items-center justify-center fixed inset-0 bg-white z-[99999] m-0 p-0 text-black font-sans"
-      >
-        <PriceTag product={product} />
-      </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page {
-            size: 2.5in 1.5in;
-            margin: 0;
-          }
-          html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 2.5in !important;
-            height: 1.5in !important;
-            overflow: hidden !important;
-            background: white !important;
-          }
-          body > *:not(#single-price-tag-print-area) {
-            display: none !important;
-          }
-          #single-price-tag-print-area {
-            display: flex !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 2.5in !important;
-            height: 1.5in !important;
-            margin: 0 !important;
-            padding: 2px !important;
-            background: white !important;
-            align-items: center !important;
-            justify-content: center !important;
-          }
-        }
-      ` }} />
     </div>
   );
 }
