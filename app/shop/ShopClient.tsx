@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { reserveProductAction, clientCheckoutAction, clientCartCheckoutAction, clientGuestRegisterAction } from './actions';
 import Script from 'next/script';
 import CheckoutModal from '@/components/CheckoutModal';
+import { useToast } from '@/components/Toast';
 
 interface Product {
   id: string;
@@ -44,6 +46,7 @@ export default function ShopClient({
   isAdmin = false,
 }: ShopClientProps) {
   const router = useRouter();
+  const toast = useToast();
   const [activeCustomer, setActiveCustomer] = useState(customer);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -57,6 +60,12 @@ export default function ShopClient({
   const [cart, setCart] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCartCheckingOut, setIsCartCheckingOut] = useState(false);
+  const [cartBouncing, setCartBouncing] = useState(false);
+
+  const triggerCartBounce = () => {
+    setCartBouncing(true);
+    setTimeout(() => setCartBouncing(false), 400);
+  };
 
   useEffect(() => {
     const loadCart = () => {
@@ -96,15 +105,15 @@ export default function ShopClient({
 
       if (existing) {
         if (product.isUnique) {
-          alert('This unique item is already in your cart.');
+          toast.warning('This unique piece is already in your cart.');
           return;
         }
         if (existing.quantity >= product.quantity) {
-          alert(`You have added the maximum available quantity (${product.quantity}) for this item.`);
+          toast.warning(`Maximum available quantity (${product.quantity}) added.`);
           return;
         }
         existing.quantity += 1;
-        alert('Increased item quantity in cart!');
+        toast.info(`Increased "${product.name}" quantity to ${existing.quantity}.`);
       } else {
         currentCart.push({
           id: product.id,
@@ -117,14 +126,17 @@ export default function ShopClient({
           maxQuantity: product.quantity,
           quantity: 1,
         });
-        alert('Item added to cart!');
+        toast.success(`"${product.name}" added to cart!`);
       }
       localStorage.setItem('jawhara_cart', JSON.stringify(currentCart));
       setCart(currentCart);
+      triggerCartBounce();
     } catch (e) {
       console.error(e);
+      toast.error('Failed to add item to cart.');
     }
   };
+
 
   const handleUpdateCartQuantity = (productId: string, newQty: number) => {
     const updated = cart.map(item => {
@@ -162,12 +174,12 @@ export default function ShopClient({
       const checkoutRes = await clientCartCheckoutAction({ items, notes });
       
       if (checkoutRes.error) {
-        alert(checkoutRes.error);
+        toast.error(checkoutRes.error);
         setIsCartCheckingOut(false);
       } else if (checkoutRes.useStandardCheckout) {
         const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!keyId) {
-          alert('Razorpay Key ID is missing in environment variables.');
+          toast.error('Razorpay Key ID is missing in environment variables.');
           setIsCartCheckingOut(false);
           return;
         }
@@ -200,7 +212,7 @@ export default function ShopClient({
               // Clear cart on success
               localStorage.removeItem('jawhara_cart');
               setCart([]);
-              alert('Payment successful! Your order has been placed and is being processed.');
+              toast.success('Payment successful! Your order has been placed.');
               if (verifyData.orderId) {
                 router.push(`/orders/${verifyData.orderId}/receipt`);
               } else {
@@ -208,7 +220,7 @@ export default function ShopClient({
               }
             } catch (verifyErr: any) {
               console.error(verifyErr);
-              alert(`Verification Error: ${verifyErr.message}`);
+              toast.error(`Verification Error: ${verifyErr.message}`);
             } finally {
               setIsCartCheckingOut(false);
             }
@@ -230,7 +242,7 @@ export default function ShopClient({
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (response: any) {
-          alert(`Payment failed: ${response.error.description}`);
+          toast.error(`Payment failed: ${response.error.description}`);
           setIsCartCheckingOut(false);
         });
         rzp.open();
@@ -238,19 +250,19 @@ export default function ShopClient({
         window.open(checkoutRes.paymentUrl, '_blank');
         localStorage.removeItem('jawhara_cart');
         setCart([]);
-        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        toast.info('Checkout initiated! A payment page has opened in a new tab.');
         router.refresh();
         setIsCartCheckingOut(false);
       } else {
         localStorage.removeItem('jawhara_cart');
         setCart([]);
-        alert('Checkout initiated successfully.');
+        toast.success('Checkout initiated successfully.');
         router.refresh();
         setIsCartCheckingOut(false);
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to initiate checkout.');
+      toast.error('Failed to initiate checkout.');
       setIsCartCheckingOut(false);
     }
   };
@@ -304,6 +316,7 @@ export default function ShopClient({
       const response = await fetch('/shop/api/logout', { method: 'POST' });
       if (response.ok) {
         setActiveCustomer(null);
+        toast.info('Signed out successfully.');
         window.location.href = '/';
       }
     } catch (err) {
@@ -314,12 +327,8 @@ export default function ShopClient({
   // Reservation handler
   const handleReserve = async (productId: string) => {
     if (!customer) {
-      alert('Please sign in or register to place this item on hold.');
+      toast.warning('Please sign in or register to place this item on hold.');
       router.push('/login');
-      return;
-    }
-
-    if (!confirm('Place a temporary hold on this item for 20 minutes? Other users will see it as reserved.')) {
       return;
     }
 
@@ -328,9 +337,9 @@ export default function ShopClient({
       const res = await reserveProductAction(productId);
       if (res.error) {
         setError(res.error);
-        alert(res.error);
+        toast.error(res.error);
       } else {
-        alert('Item placed on hold successfully! Go to My Dashboard to track the timer.');
+        toast.success('Piece placed on hold for 20 minutes! Track time in My Holds.');
         router.refresh();
       }
     });
@@ -346,7 +355,7 @@ export default function ShopClient({
   // Direct Buy Now handler from the catalogue page
   const handleBuyNow = async (productId: string, notes?: string) => {
     if (!activeCustomer) {
-      alert('Please sign in or register to complete your purchase.');
+      toast.warning('Please sign in or register to complete your purchase.');
       return;
     }
 
@@ -355,24 +364,24 @@ export default function ShopClient({
       // 1. Reserve first
       const reserveRes = await reserveProductAction(productId);
       if (reserveRes.error) {
-        alert(reserveRes.error);
+        toast.error(reserveRes.error);
         return;
       }
 
       const reservationId = reserveRes.reservation?.id;
       if (!reservationId) {
-        alert('Failed to place hold before checkout.');
+        toast.error('Failed to place hold before checkout.');
         return;
       }
 
       // 2. Trigger checkout immediately
       const checkoutRes = await clientCheckoutAction({ reservationId, notes });
       if (checkoutRes.error) {
-        alert(checkoutRes.error);
+        toast.error(checkoutRes.error);
       } else if (checkoutRes.useStandardCheckout) {
         const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!keyId) {
-          alert('Razorpay Key ID is missing in environment variables.');
+          toast.error('Razorpay Key ID is missing in environment variables.');
           return;
         }
         const options = {
@@ -401,7 +410,7 @@ export default function ShopClient({
                 throw new Error(verifyData.error || 'Payment signature verification failed.');
               }
 
-              alert('Payment successful! Your order has been placed and is being processed.');
+              toast.success('Payment successful! Your order has been placed.');
               if (verifyData.orderId) {
                 router.push(`/orders/${verifyData.orderId}/receipt`);
               } else {
@@ -409,7 +418,7 @@ export default function ShopClient({
               }
             } catch (verifyErr: any) {
               console.error(verifyErr);
-              alert(`Verification Error: ${verifyErr.message}`);
+              toast.error(`Verification Error: ${verifyErr.message}`);
             }
           },
           prefill: {
@@ -424,15 +433,15 @@ export default function ShopClient({
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (response: any) {
-          alert(`Payment failed: ${response.error.description}`);
+          toast.error(`Payment failed: ${response.error.description}`);
         });
         rzp.open();
       } else if (checkoutRes.paymentUrl) {
         window.open(checkoutRes.paymentUrl, '_blank');
-        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        toast.info('Checkout initiated! A payment page has opened in a new tab.');
         router.refresh();
       } else {
-        alert('Checkout initiated successfully.');
+        toast.success('Checkout initiated successfully.');
         router.refresh();
       }
     });
@@ -482,11 +491,14 @@ export default function ShopClient({
             {/* Cart Button */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 text-primary hover:opacity-85 transition-opacity cursor-pointer flex items-center justify-center border border-outline-variant/30 rounded-full"
+              className={`relative p-2 text-primary hover:opacity-85 transition-all cursor-pointer flex items-center justify-center border border-outline-variant/30 rounded-full ${
+                cartBouncing ? 'animate-badge-bounce' : ''
+              }`}
+              aria-label="View shopping cart"
             >
               <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
               {cart.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-error text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center animate-fade-in shadow-sm">
+                <span className="absolute -top-1.5 -right-1.5 bg-primary text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
                   {cart.length}
                 </span>
               )}
@@ -552,7 +564,13 @@ export default function ShopClient({
                       
                       <Link href={`/p/${p.slug}`} className="flex flex-col flex-grow">
                         <div className="aspect-[3/4] bg-surface-container-low overflow-hidden relative">
-                          <img src={mainImg} alt={p.name} className="w-full h-full object-cover" />
+                          <Image
+                            src={mainImg}
+                            alt={p.name}
+                            fill
+                            sizes="(max-width: 640px) 140px, 160px"
+                            className="object-cover"
+                          />
                         </div>
                         <div className="p-2.5 flex-grow flex flex-col justify-between space-y-1">
                           <div className="space-y-0.5">
@@ -696,10 +714,12 @@ export default function ShopClient({
                     <Link href={`/p/${p.slug}`} className="flex flex-col flex-grow cursor-pointer group/link">
                       {/* Image Frame */}
                       <div className="aspect-[3/4] bg-surface-container-low overflow-hidden relative shrink-0">
-                        <img 
+                        <Image 
                           src={mainImg} 
                           alt={p.name} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover/link:scale-105"
+                          fill
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                          className="object-cover transition-transform duration-500 group-hover/link:scale-105"
                         />
                       </div>
 
@@ -866,9 +886,9 @@ export default function ShopClient({
                       <Link
                         href={`/p/${item.slug}`}
                         onClick={() => setIsCartOpen(false)}
-                        className="w-16 h-20 bg-surface-container-low rounded-lg overflow-hidden shrink-0 block hover:opacity-90"
+                        className="w-16 h-20 bg-surface-container-low rounded-lg overflow-hidden shrink-0 block hover:opacity-90 relative"
                       >
-                        <img src={img} alt={item.name} className="w-full h-full object-cover" />
+                        <Image src={img} alt={item.name} fill sizes="64px" className="object-cover" />
                       </Link>
 
                       <div className="flex-grow flex flex-col justify-between">

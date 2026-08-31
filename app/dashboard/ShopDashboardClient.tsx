@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { 
@@ -12,6 +13,7 @@ import {
   clientCheckoutAction
 } from '../shop/actions';
 import CheckoutModal from '@/components/CheckoutModal';
+import { useToast } from '@/components/Toast';
 
 interface Reservation {
   id: string;
@@ -59,6 +61,7 @@ export default function ShopDashboardClient({
   chatMessages = [],
 }: ShopDashboardClientProps) {
   const router = useRouter();
+  const toast = useToast();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
   const [expiredHolds, setExpiredHolds] = useState<Record<string, boolean>>({});
@@ -85,7 +88,7 @@ export default function ShopDashboardClient({
     try {
       const res = await clientSendMessageAction({ body: currentMsgText });
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         const tempMsg: ChatMessage = {
           id: Math.random().toString(),
@@ -97,6 +100,7 @@ export default function ShopDashboardClient({
       }
     } catch (err) {
       console.error(err);
+      toast.error('Failed to send message.');
     } finally {
       setSendingMsg(false);
     }
@@ -215,22 +219,18 @@ export default function ShopDashboardClient({
   }, [activeHolds, expiredHolds, router]);
 
   const handleCancelHold = async (reservationId: string) => {
-    if (!confirm('Are you sure you want to release this piece? It will be immediately made available for other boutique customers.')) {
-      return;
-    }
-
     setCancellingId(reservationId);
     try {
       const res = await cancelReservationAction(reservationId);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
-        alert('Piece released back to inventory.');
+        toast.info('Piece released back to inventory.');
         router.refresh();
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to release piece.');
+      toast.error('Failed to release piece.');
     } finally {
       setCancellingId(null);
     }
@@ -246,13 +246,13 @@ export default function ShopDashboardClient({
     try {
       const res = await clientCheckoutAction({ reservationId, notes });
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
         setCheckingOutId(null);
       } else if (res.useStandardCheckout) {
         // Standard Checkout Modal Integration
         const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!keyId) {
-          alert('Razorpay Key ID is missing in environment variables.');
+          toast.error('Razorpay Key ID is missing in environment variables.');
           setCheckingOutId(null);
           return;
         }
@@ -285,7 +285,7 @@ export default function ShopDashboardClient({
                 throw new Error(verifyData.error || 'Payment signature verification failed.');
               }
 
-              alert('Payment successful! Your order has been placed and is being processed.');
+              toast.success('Payment successful! Your order has been placed.');
               if (verifyData.orderId) {
                 router.push(`/orders/${verifyData.orderId}/receipt`);
               } else {
@@ -293,7 +293,7 @@ export default function ShopDashboardClient({
               }
             } catch (verifyErr: any) {
               console.error(verifyErr);
-              alert(`Verification Error: ${verifyErr.message}`);
+              toast.error(`Verification Error: ${verifyErr.message}`);
             } finally {
               setCheckingOutId(null);
             }
@@ -315,24 +315,24 @@ export default function ShopDashboardClient({
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (response: any) {
-          alert(`Payment failed: ${response.error.description}`);
+          toast.error(`Payment failed: ${response.error.description}`);
           setCheckingOutId(null);
         });
         rzp.open();
       } else if (res.paymentUrl) {
         // Redirect to Razorpay payment page
         window.open(res.paymentUrl, '_blank');
-        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        toast.info('Checkout initiated! A payment page has opened in a new tab.');
         router.refresh();
         setCheckingOutId(null);
       } else {
-        alert('Checkout initiated successfully.');
+        toast.success('Checkout initiated successfully.');
         router.refresh();
         setCheckingOutId(null);
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to initiate checkout.');
+      toast.error('Failed to initiate checkout.');
       setCheckingOutId(null);
     }
   };
@@ -405,9 +405,9 @@ export default function ShopDashboardClient({
                     
                     <Link 
                       href={`/p/${hold.product.slug}`}
-                      className="w-20 h-24 bg-surface-container-low rounded-lg overflow-hidden shrink-0 block hover:opacity-90 transition-opacity"
+                      className="w-20 h-24 bg-surface-container-low rounded-lg overflow-hidden shrink-0 block hover:opacity-90 transition-opacity relative"
                     >
-                      <img src={img} alt={hold.product.name} className="w-full h-full object-cover" />
+                      <Image src={img} alt={hold.product.name} fill sizes="80px" className="object-cover" />
                     </Link>
                     
                     <div className="flex-grow flex flex-col justify-between">

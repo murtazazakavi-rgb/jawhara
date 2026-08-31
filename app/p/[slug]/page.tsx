@@ -3,12 +3,14 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Metadata } from 'next';
 import { getCurrentCustomer } from '@/lib/clientAuth';
 import { getCurrentUser } from '@/lib/auth';
 import ProductInquiryForm from './ProductInquiryForm';
 import HoldTimerBadge from './HoldTimerBadge';
 import ProductActionsClient from './ProductActionsClient';
+import ProductImageGallery from './ProductImageGallery';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,16 +185,11 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
         
         {/* Left image column */}
         <section className="md:col-span-6 flex flex-col gap-4">
-          <div className="w-full aspect-[3/4] bg-surface-container-low rounded-xl overflow-hidden border border-outline-variant/30 relative">
-            <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
-            {isSold && (
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center">
-                <span className="bg-surface/90 text-on-surface font-display text-lg px-6 py-2 rounded-full uppercase tracking-wider shadow-md">
-                  Found its home
-                </span>
-              </div>
-            )}
-          </div>
+          <ProductImageGallery
+            images={product.images}
+            productName={product.name}
+            isSold={isSold}
+          />
         </section>
 
         {/* Right Info details */}
@@ -300,10 +297,12 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
                   return (
                     <Link key={p.id} href={`/p/${p.slug}`} className="group flex flex-col gap-1.5">
                       <div className="aspect-[3/4] w-full bg-surface-container-low rounded-lg overflow-hidden border border-outline-variant/15 relative">
-                        <img
+                        <Image
                           src={img}
                           alt={p.name}
-                          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
+                          fill
+                          sizes="(max-width: 768px) 33vw, 15vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       </div>
                       <h4 className="font-label-md text-on-surface text-xs truncate group-hover:text-primary transition-colors">

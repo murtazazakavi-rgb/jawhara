@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { ToastProvider } from "@/components/Toast";
 import { getCurrentCustomer } from "@/lib/clientAuth";
 
 export const metadata: Metadata = {
@@ -51,10 +52,13 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-surface text-on-surface pb-16 md:pb-0">
-        <PWAInstallPrompt />
-        {children}
-        <BottomNav isLoggedIn={isLoggedIn} />
+        <ToastProvider>
+          <PWAInstallPrompt />
+          {children}
+          <BottomNav isLoggedIn={isLoggedIn} />
+        </ToastProvider>
       </body>
     </html>
   );
 }
+

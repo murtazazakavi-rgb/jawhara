@@ -2,8 +2,10 @@
 
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { releaseReservation } from './[id]/actions';
+import { useToast } from '@/components/Toast';
 
 interface Customer {
   id: string;
@@ -33,25 +35,23 @@ interface ReservedProductsListProps {
 
 export default function ReservedProductsList({ products }: ReservedProductsListProps) {
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [releasingId, setReleasingId] = useState<string | null>(null);
 
   const handleRelease = (productId: string, productName: string) => {
-    if (!confirm(`Are you sure you want to release the hold on "${productName}"?`)) return;
-    
     setReleasingId(productId);
     startTransition(async () => {
       try {
         const res = await releaseReservation({ productId });
         if (res.error) {
-          alert(res.error);
+          toast.error(res.error);
         } else {
-          alert('Hold successfully released and item returned to available inventory.');
+          toast.success(`Hold on "${productName}" released.`);
           router.refresh();
         }
-      } catch (err) {
-        console.error(err);
-        alert('An error occurred while releasing the hold.');
+      } catch (e) {
+        toast.error('An unexpected error occurred while releasing the hold.');
       } finally {
         setReleasingId(null);
       }
@@ -117,8 +117,8 @@ export default function ReservedProductsList({ products }: ReservedProductsListP
                 >
                   {/* Thumbnail */}
                   <td className="py-4 pr-4">
-                    <div className="w-10 h-12 bg-surface-container-low rounded overflow-hidden border border-outline-variant/10 shrink-0">
-                      <img src={mainImg} alt={product.name} className="w-full h-full object-cover" />
+                    <div className="w-10 h-12 bg-surface-container-low rounded overflow-hidden border border-outline-variant/10 shrink-0 relative">
+                      <Image src={mainImg} alt={product.name} fill sizes="40px" className="object-cover" />
                     </div>
                   </td>
 

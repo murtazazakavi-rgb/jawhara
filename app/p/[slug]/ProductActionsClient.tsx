@@ -4,6 +4,7 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import CheckoutModal from '@/components/CheckoutModal';
+import { useToast } from '@/components/Toast';
 import { 
   reserveProductAction,
   cancelReservationAction,
@@ -51,10 +52,12 @@ export default function ProductActionsClient({
   productImage = null,
 }: ProductActionsClientProps) {
   const router = useRouter();
+  const toast = useToast();
   const [activeCustomer, setActiveCustomer] = useState(customer);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   const [timerText, setTimerText] = useState('Reserved');
+  const [addedToCart, setAddedToCart] = useState(false);
   
   // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -89,15 +92,15 @@ export default function ProductActionsClient({
 
       if (existing) {
         if (isUnique) {
-          alert('This unique item is already in your cart.');
+          toast.warning('This unique piece is already in your cart.');
           return;
         }
         if (existing.quantity >= quantity) {
-          alert(`You have added the maximum available quantity (${quantity}) for this item.`);
+          toast.warning(`Maximum available quantity (${quantity}) added.`);
           return;
         }
         existing.quantity += 1;
-        alert('Increased item quantity in cart!');
+        toast.info(`Increased "${productName}" quantity to ${existing.quantity}.`);
       } else {
         currentCart.push({
           id: productId,
@@ -110,25 +113,23 @@ export default function ProductActionsClient({
           maxQuantity: quantity,
           quantity: 1,
         });
-        alert('Item added to cart!');
+        toast.success(`"${productName}" added to cart!`);
       }
       localStorage.setItem('jawhara_cart', JSON.stringify(currentCart));
       window.dispatchEvent(new Event('jawhara_cart_updated'));
+      setAddedToCart(true);
+      setTimeout(() => setAddedToCart(false), 2000);
     } catch (e) {
       console.error(e);
-      alert('Failed to add item to cart.');
+      toast.error('Failed to add item to cart.');
     }
   };
 
   // Reservation handler
   const handleReserve = async () => {
     if (!activeCustomer) {
-      alert('Please sign in or register to place this item on hold.');
+      toast.warning('Please sign in or register to place this item on hold.');
       router.push(`/login?redirect=/p/${productSlug}`);
-      return;
-    }
-
-    if (!confirm('Place a temporary hold on this item for 20 minutes? Other users will see it as reserved.')) {
       return;
     }
 
@@ -136,9 +137,9 @@ export default function ProductActionsClient({
       setError('');
       const res = await reserveProductAction(productId);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
-        alert('Item placed on hold successfully! You can complete your checkout now.');
+        toast.success('Piece placed on hold for 20 minutes! You can complete purchase now.');
         router.refresh();
       }
     });
@@ -147,17 +148,14 @@ export default function ProductActionsClient({
   // Cancel hold reservation
   const handleCancelHold = async () => {
     if (!activeReservation) return;
-    if (!confirm('Are you sure you want to release this piece? It will be immediately made available for other boutique customers.')) {
-      return;
-    }
 
     startTransition(async () => {
       setError('');
       const res = await cancelReservationAction(activeReservation.id);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
-        alert('Piece released back to inventory.');
+        toast.info('Piece released back to boutique inventory.');
         router.refresh();
       }
     });
@@ -176,12 +174,12 @@ export default function ProductActionsClient({
       setError('');
       const res = await clientCheckoutAction({ reservationId: activeReservation.id, notes });
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else if (res.useStandardCheckout) {
         // Standard Razorpay Checkout Modal
         const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!keyId) {
-          alert('Razorpay Key ID is missing in environment variables.');
+          toast.error('Razorpay Key ID is missing in environment variables.');
           return;
         }
         const options = {
@@ -210,7 +208,7 @@ export default function ProductActionsClient({
                 throw new Error(verifyData.error || 'Payment signature verification failed.');
               }
 
-              alert('Payment successful! Your order has been placed and is being processed.');
+              toast.success('Payment successful! Your order has been placed.');
               if (verifyData.orderId) {
                 router.push(`/orders/${verifyData.orderId}/receipt`);
               } else {
@@ -218,7 +216,7 @@ export default function ProductActionsClient({
               }
             } catch (verifyErr: any) {
               console.error(verifyErr);
-              alert(`Verification Error: ${verifyErr.message}`);
+              toast.error(`Verification Error: ${verifyErr.message}`);
             }
           },
           prefill: {
@@ -233,15 +231,15 @@ export default function ProductActionsClient({
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (response: any) {
-          alert(`Payment failed: ${response.error.description}`);
+          toast.error(`Payment failed: ${response.error.description}`);
         });
         rzp.open();
       } else if (res.paymentUrl) {
         window.open(res.paymentUrl, '_blank');
-        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        toast.info('Checkout initiated! A payment page has opened in a new tab.');
         router.refresh();
       } else {
-        alert('Checkout initiated successfully.');
+        toast.success('Checkout initiated successfully.');
         router.refresh();
       }
     });
@@ -256,7 +254,7 @@ export default function ProductActionsClient({
   // Direct checkout handler (Buy Now on available item)
   const handleBuyNowDirect = async (notes?: string) => {
     if (!activeCustomer) {
-      alert('Please sign in or register to complete your purchase.');
+      toast.warning('Please sign in or register to complete your purchase.');
       return;
     }
 
@@ -265,24 +263,24 @@ export default function ProductActionsClient({
       // 1. Reserve first
       const reserveRes = await reserveProductAction(productId);
       if (reserveRes.error) {
-        alert(reserveRes.error);
+        toast.error(reserveRes.error);
         return;
       }
 
       const reservationId = reserveRes.reservation?.id;
       if (!reservationId) {
-        alert('Failed to place hold before checkout.');
+        toast.error('Failed to place hold before checkout.');
         return;
       }
 
       // 2. Trigger checkout immediately
       const checkoutRes = await clientCheckoutAction({ reservationId, notes });
       if (checkoutRes.error) {
-        alert(checkoutRes.error);
+        toast.error(checkoutRes.error);
       } else if (checkoutRes.useStandardCheckout) {
         const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!keyId) {
-          alert('Razorpay Key ID is missing in environment variables.');
+          toast.error('Razorpay Key ID is missing in environment variables.');
           return;
         }
         const options = {
@@ -311,7 +309,7 @@ export default function ProductActionsClient({
                 throw new Error(verifyData.error || 'Payment signature verification failed.');
               }
 
-              alert('Payment successful! Your order has been placed and is being processed.');
+              toast.success('Payment successful! Your order has been placed.');
               if (verifyData.orderId) {
                 router.push(`/orders/${verifyData.orderId}/receipt`);
               } else {
@@ -319,7 +317,7 @@ export default function ProductActionsClient({
               }
             } catch (verifyErr: any) {
               console.error(verifyErr);
-              alert(`Verification Error: ${verifyErr.message}`);
+              toast.error(`Verification Error: ${verifyErr.message}`);
             }
           },
           prefill: {
@@ -334,15 +332,15 @@ export default function ProductActionsClient({
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (response: any) {
-          alert(`Payment failed: ${response.error.description}`);
+          toast.error(`Payment failed: ${response.error.description}`);
         });
         rzp.open();
       } else if (checkoutRes.paymentUrl) {
         window.open(checkoutRes.paymentUrl, '_blank');
-        alert('Checkout initiated! A payment page has opened in a new tab. Once payment succeeds, your order status will be updated on your dashboard.');
+        toast.info('Checkout initiated! A payment page has opened in a new tab.');
         router.refresh();
       } else {
-        alert('Checkout initiated successfully.');
+        toast.success('Checkout initiated successfully.');
         router.refresh();
       }
     });
@@ -426,10 +424,16 @@ export default function ProductActionsClient({
           <button
             onClick={handleAddToCart}
             disabled={isPending}
-            className="w-full border border-primary text-primary font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] hover:bg-primary/5 transition-colors flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 font-semibold"
+            className={`w-full border font-label-md py-3 px-5 rounded-full uppercase tracking-wider text-[10px] transition-all flex justify-center items-center gap-1.5 cursor-pointer disabled:opacity-50 font-semibold ${
+              addedToCart 
+                ? 'bg-primary text-white border-primary shadow-xs' 
+                : 'border-primary text-primary hover:bg-primary/5'
+            }`}
           >
-            <span className="material-symbols-outlined text-[13px]">add_shopping_cart</span>
-            Add to Cart
+            <span className="material-symbols-outlined text-[13px]">
+              {addedToCart ? 'check' : 'add_shopping_cart'}
+            </span>
+            {addedToCart ? 'Added to Cart ✓' : 'Add to Cart'}
           </button>
           <button
             onClick={handleReserve}
@@ -458,7 +462,7 @@ export default function ProductActionsClient({
           if (guestInfo) {
             const regRes = await clientGuestRegisterAction(guestInfo);
             if (regRes.error) {
-              alert(regRes.error);
+              toast.error(regRes.error);
               return;
             }
             if (regRes.customer) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jawhara-cache-v2';
+const CACHE_NAME = 'jawhara-cache-v3';
 const ASSETS = [
   '/',
   '/login',
@@ -34,6 +34,24 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Cache Google Fonts & Material Symbols
+  if (url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
   // Do not cache API routes, Next.js dynamic chunks/actions, or dynamic page routes
   if (
     url.pathname.startsWith('/api/') || 
@@ -50,7 +68,7 @@ self.addEventListener('fetch', (event) => {
       }
       return fetch(event.request).then((response) => {
         // Cache valid successful responses
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -64,3 +82,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
