@@ -487,7 +487,18 @@ export default function ShopClient({
             </span>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="px-3 py-1.5 bg-primary/10 text-primary border border-primary/25 rounded-full text-[10px] font-label-md uppercase tracking-wider font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 shadow-xs"
+                title="Open Jawhara OS Admin Portal"
+              >
+                <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
+                <span className="hidden sm:inline">Admin OS</span>
+              </Link>
+            )}
+
             {/* Cart Button */}
             <button
               onClick={() => setIsCartOpen(true)}
@@ -505,7 +516,7 @@ export default function ShopClient({
             </button>
 
             {activeCustomer ? (
-              <div className="flex items-center gap-3 border-l border-outline-variant/30 pl-4">
+              <div className="flex items-center gap-3 border-l border-outline-variant/30 pl-3 sm:pl-4">
                 <button
                   onClick={handleLogout}
                   className="text-[10px] font-label-md uppercase tracking-wider text-error hover:underline flex items-center gap-1.5 font-semibold cursor-pointer"
@@ -517,7 +528,7 @@ export default function ShopClient({
             ) : (
               <Link
                 href="/login"
-                className="px-5 py-2 bg-primary text-white text-[10px] font-label-md uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-sm font-semibold"
+                className="px-4 sm:px-5 py-2 bg-primary text-white text-[10px] font-label-md uppercase tracking-wider rounded-full hover:opacity-90 transition-opacity flex items-center gap-1.5 shadow-sm font-semibold"
               >
                 <span className="material-symbols-outlined text-xs">account_circle</span>
                 Client Login
@@ -798,9 +809,17 @@ export default function ShopClient({
 
       {/* Footer */}
       <footer className="w-full py-8 border-t border-outline-variant/20 bg-surface-container-lowest mt-16 text-center">
-        <p className="text-[10px] font-mono text-outline">
-          © {new Date().getFullYear()} Jawhara - Dynamic Lookbook by MJZ
-        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-[10px] font-mono text-outline">
+          <span>© {new Date().getFullYear()} Jawhara - Dynamic Lookbook by MJZ</span>
+          <span className="hidden sm:inline opacity-40">•</span>
+          <Link
+            href="/admin"
+            className="hover:text-primary hover:underline flex items-center gap-1 transition-colors font-label-md uppercase tracking-wider"
+          >
+            <span className="material-symbols-outlined text-[13px]">lock</span>
+            Staff & Admin Access
+          </Link>
+        </div>
       </footer>
 
       {/* Checkout Options Modal */}

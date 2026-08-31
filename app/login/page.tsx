@@ -279,9 +279,19 @@ function LoginPageContent() {
               Already registered? Sign in
             </button>
           )}
-          <Link href="/" className="text-outline hover:underline text-[10px] font-label-md uppercase tracking-wider mt-2">
+          <Link href="/" className="text-outline hover:underline text-[10px] font-label-md uppercase tracking-wider mt-1">
             Browse Catalog as Guest
           </Link>
+
+          <div className="mt-4 pt-3 border-t border-outline-variant/10 text-center">
+            <Link
+              href="/admin/login"
+              className="text-secondary hover:text-primary text-[11px] font-label-md uppercase tracking-wider font-semibold inline-flex items-center gap-1 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[14px]">shield_person</span>
+              Boutique Staff & Admin Portal →
+            </Link>
+          </div>
         </div>
       </div>
     </div>

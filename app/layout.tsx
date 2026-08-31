@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import AdminShortcut from "@/components/AdminShortcut";
 import { ToastProvider } from "@/components/Toast";
 import { getCurrentCustomer } from "@/lib/clientAuth";
 
@@ -54,6 +55,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-surface text-on-surface pb-16 md:pb-0">
         <ToastProvider>
           <PWAInstallPrompt />
+          <AdminShortcut />
           {children}
           <BottomNav isLoggedIn={isLoggedIn} />
         </ToastProvider>
@@ -61,4 +63,5 @@ export default async function RootLayout({
     </html>
   );
 }
+
 

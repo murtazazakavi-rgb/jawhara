@@ -320,9 +320,19 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
 
       {/* Footer */}
       <footer className="w-full py-8 text-center border-t border-outline-variant/10 bg-surface-container-lowest z-10 flex flex-col items-center">
-        <span className="font-label-sm uppercase tracking-widest text-outline text-[10px]">
-          Jawhara - Dynamic Lookbook by MJZ © 2026
-        </span>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+          <span className="font-label-sm uppercase tracking-widest text-outline text-[10px]">
+            Jawhara - Dynamic Lookbook by MJZ © 2026
+          </span>
+          <span className="hidden sm:inline text-outline/40">•</span>
+          <Link
+            href="/admin"
+            className="font-label-sm uppercase tracking-wider text-outline hover:text-primary hover:underline text-[10px] flex items-center gap-1 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[13px]">lock</span>
+            Staff Access
+          </Link>
+        </div>
       </footer>
     </div>
   );
