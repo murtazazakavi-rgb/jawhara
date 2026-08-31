@@ -19,7 +19,13 @@ export default async function OrdersPage() {
       customer: true,
       orderItems: {
         include: {
-          product: true,
+          product: {
+            include: {
+              images: {
+                orderBy: { isPrimary: 'desc' },
+              },
+            },
+          },
         },
       },
     },

@@ -244,8 +244,8 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
               </div>
             )}
 
-            {/* Custom attributes */}
-            {product.attributes.map((attr) => (
+            {/* Custom attributes deduplicated */}
+            {Array.from(new Map(product.attributes.map(a => [a.definition.key || a.definition.name, a])).values()).map((attr) => (
               <div key={attr.id} className="flex flex-col gap-0.5">
                 <span className="font-label-sm text-outline uppercase text-[10px]">
                   {attr.definition.name}

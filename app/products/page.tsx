@@ -74,8 +74,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   // 3. Fetch products, categories, collections
   const includeQuery: any = {
     category: true,
+    collection: true,
+    attributes: {
+      include: { definition: true },
+    },
     images: {
-      where: { isPrimary: true },
+      orderBy: { isPrimary: 'desc' },
       take: 1,
     },
   };

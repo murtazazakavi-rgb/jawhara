@@ -125,6 +125,8 @@ model AttributeDefinition {
   options      String? // JSON array of strings for select fields
   sortOrder    Int                     @default(0)
   values       ProductAttributeValue[]
+
+  @@unique([categoryId, key])
 }
 
 model ProductAttributeValue {
@@ -134,6 +136,8 @@ model ProductAttributeValue {
   definitionId String
   definition   AttributeDefinition @relation(fields: [definitionId], references: [id])
   value        String // Stringified value
+
+  @@unique([productId, definitionId])
 }
 
 model Product {

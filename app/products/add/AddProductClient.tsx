@@ -99,11 +99,8 @@ export default function AddProductClient({ categories, collections }: AddProduct
       setFormError('Please upload at least one image first.');
       return;
     }
-    const selectedCategory = categories.find((c) => c.id === categoryId);
-    if (!selectedCategory) {
-      setFormError('Please select a category.');
-      return;
-    }
+    
+    const currentCategory = categories.find((c) => c.id === categoryId);
 
     setIsAnalyzing(true);
     setFormError('');
@@ -114,7 +111,7 @@ export default function AddProductClient({ categories, collections }: AddProduct
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: images[0].startsWith('http') ? images[0] : (window.location.origin + images[0]),
-          categoryName: selectedCategory.name,
+          categoryName: currentCategory?.name || undefined,
         }),
       });
 
@@ -122,16 +119,35 @@ export default function AddProductClient({ categories, collections }: AddProduct
       if (data.error) {
         setFormError(data.error);
       } else {
+        // Auto-select category if not selected
+        let matchedCategory = currentCategory;
+        if (!matchedCategory && data.categoryName) {
+          matchedCategory = categories.find(
+            (c) => c.name.toLowerCase() === data.categoryName.toLowerCase()
+          ) || categories.find((c) => c.name.toLowerCase() === 'rida') || categories[0];
+          
+          if (matchedCategory) {
+            setCategoryId(matchedCategory.id);
+            if (matchedCategory.name.toLowerCase() === 'rida') {
+              setQuantity('1');
+              setIsUnique(true);
+            }
+          }
+        }
+
         setName(data.name || '');
         setShortDesc(data.shortDesc || '');
         setDescription(data.description || '');
         setPrimaryColour(data.primaryColour || '');
         setSecondaryColours(data.secondaryColours || '');
+        if (data.suggestedPrice && !price) {
+          setPrice(String(data.suggestedPrice));
+        }
         
         // Map dynamic attributes suggestions
         const newAttrs: { [key: string]: string } = {};
-        if (data.attributes) {
-          const catDefs = selectedCategory.attributeDefinitions || [];
+        if (data.attributes && matchedCategory) {
+          const catDefs = matchedCategory.attributeDefinitions || [];
           catDefs.forEach((def: any) => {
             if (data.attributes[def.key]) {
               newAttrs[def.id] = data.attributes[def.key];
@@ -291,23 +307,57 @@ export default function AddProductClient({ categories, collections }: AddProduct
 
           {/* Photos Grid preview */}
           {images.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 mt-4">
-              {images.map((url, idx) => (
-                <div key={idx} className="aspect-square bg-surface rounded-lg overflow-hidden border border-outline-variant/30 relative group shadow-sm">
-                  <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => removeImage(idx)}
-                    className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-1 hover:bg-black/85 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-xs">close</span>
-                  </button>
-                  {idx === 0 && (
-                    <span className="absolute bottom-1.5 left-1.5 bg-primary/95 text-on-primary font-label-sm text-[9px] px-2 py-0.5 rounded uppercase tracking-wider">
-                      Primary
-                    </span>
-                  )}
+            <div className="space-y-4 mt-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                {images.map((url, idx) => (
+                  <div key={idx} className="aspect-square bg-surface rounded-lg overflow-hidden border border-outline-variant/30 relative group shadow-sm">
+                    <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removeImage(idx)}
+                      className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-1 hover:bg-black/85 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-xs">close</span>
+                    </button>
+                    {idx === 0 && (
+                      <span className="absolute bottom-1.5 left-1.5 bg-primary/95 text-on-primary font-label-sm text-[9px] px-2 py-0.5 rounded uppercase tracking-wider">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Instant AI Auto-Fill Card */}
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-2.5">
+                  <span className="material-symbols-outlined text-primary text-[24px]">auto_awesome</span>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Instant AI Auto-Fill</h4>
+                    <p className="text-[11px] text-on-surface-variant">Auto-detects category, fabric, embroidery, pardi style, and poetic name</p>
+                  </div>
                 </div>
-              ))}
+                <button
+                  type="button"
+                  disabled={isAnalyzing}
+                  onClick={async () => {
+                    await handleAIAssist();
+                    setStep(2);
+                  }}
+                  className="px-4 py-2 bg-primary text-white text-xs font-label-md uppercase tracking-wider font-bold rounded-lg hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm animate-spin">refresh</span>
+                      <span>Analyzing Photo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                      <span>Auto-Fill with AI →</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -360,7 +410,7 @@ export default function AddProductClient({ categories, collections }: AddProduct
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(selectedCategory.attributeDefinitions || []).map((def: any) => {
+                {Array.from(new Map((selectedCategory.attributeDefinitions || []).map((def: any) => [def.key, def])).values()).map((def: any) => {
                   const currentValue = attributes[def.id] || '';
                   const handleAttrChange = (val: string) => {
                     setAttributes((prev) => ({ ...prev, [def.id]: val }));
@@ -368,9 +418,16 @@ export default function AddProductClient({ categories, collections }: AddProduct
 
                   return (
                     <div key={def.id} className="flex flex-col gap-2">
-                      <label className="font-label-md text-xs text-on-surface-variant uppercase">
-                        {def.name} {def.required && '*'}
-                      </label>
+                      <div className="flex justify-between items-center">
+                        <label className="font-label-md text-xs text-on-surface-variant uppercase">
+                          {def.name} {def.required && '*'}
+                        </label>
+                        {currentValue && aiSuggestionsReceived && (
+                          <span className="text-[9px] font-label-sm text-primary font-bold bg-primary/10 px-1.5 py-0.2 rounded">
+                            AI Detected
+                          </span>
+                        )}
+                      </div>
                       {def.fieldType === 'SELECT' ? (
                         <select
                           value={currentValue}

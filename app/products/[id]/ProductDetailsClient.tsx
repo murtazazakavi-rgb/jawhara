@@ -281,7 +281,7 @@ export default function ProductDetailsClient({
           </div>
 
           {/* Dynamic Category Attributes */}
-          {product.attributes.map((attr: any) => (
+          {Array.from(new Map(product.attributes.map((a: any) => [a.definition?.key || a.definition?.name || a.id, a])).values()).map((attr: any) => (
             <div key={attr.id} className="flex flex-col gap-1">
               <span className="font-label-md text-secondary uppercase">{attr.definition.name}</span>
               <span className="font-body-md text-on-surface">{attr.value}</span>

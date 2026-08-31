@@ -103,8 +103,19 @@ async function main() {
   ];
 
   for (const attr of ridaAttributes) {
-    await prisma.attributeDefinition.create({
-      data: {
+    await prisma.attributeDefinition.upsert({
+      where: {
+        categoryId_key: {
+          categoryId: ridaCategory.id,
+          key: attr.key,
+        },
+      },
+      update: {
+        name: attr.name,
+        fieldType: attr.fieldType,
+        sortOrder: attr.sortOrder,
+      },
+      create: {
         categoryId: ridaCategory.id,
         key: attr.key,
         name: attr.name,
@@ -121,8 +132,20 @@ async function main() {
   ];
 
   for (const attr of beddingAttributes) {
-    await prisma.attributeDefinition.create({
-      data: {
+    await prisma.attributeDefinition.upsert({
+      where: {
+        categoryId_key: {
+          categoryId: beddingCategory.id,
+          key: attr.key,
+        },
+      },
+      update: {
+        name: attr.name,
+        fieldType: attr.fieldType,
+        options: attr.options,
+        sortOrder: attr.sortOrder,
+      },
+      create: {
         categoryId: beddingCategory.id,
         key: attr.key,
         name: attr.name,

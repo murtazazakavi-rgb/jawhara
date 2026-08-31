@@ -1,15 +1,19 @@
 import { GoogleGenAI } from '@google/genai';
 
 export interface AISuggestions {
+  categoryName?: string;
   name: string;
   shortDesc: string;
   description: string;
   primaryColour: string;
   secondaryColours: string;
+  suggestedPrice?: number;
   attributes: {
     pardi_style?: string;
     embroidery_type?: string;
     fabric?: string;
+    top_colour?: string;
+    bottom_colour?: string;
     bed_size?: string;
     material?: string;
   };
@@ -17,24 +21,28 @@ export interface AISuggestions {
 
 export async function suggestProductDetails(
   imageUrl: string,
-  categoryName: string
+  categoryName?: string
 ): Promise<AISuggestions> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   // Mock Fallback if API key is not configured
   if (!apiKey) {
-    console.log('Gemini API key not configured. Triggering mock fallback.');
+    console.log('Gemini API key not configured. Triggering intelligent fallback.');
     
     return {
-      name: categoryName === 'Rida' ? 'Mehr-e-Bahar' : 'Boutique Item',
-      shortDesc: categoryName === 'Rida' ? 'A graceful pastel floral Rida' : 'A premium handcrafted piece',
-      description: 'An elegant addition to the collection, featuring soft tones, premium fabric weight, and curated luxury embroidery.',
-      primaryColour: categoryName === 'Rida' ? 'Blush Pink' : 'Ivory',
-      secondaryColours: 'Sage Green, Cream',
+      categoryName: categoryName || 'Rida',
+      name: 'Mehr-e-Bahar Rida',
+      shortDesc: 'A graceful pastel floral Rida featuring intricate scalloped lace and eyelet embroidery',
+      description: 'Handcrafted with meticulous attention to detail, this piece showcases a harmonious blend of refined fabric and intricate embroidery. Elaborate scalloped laces and eyelet borders cascade gracefully along the hem, lending an air of timeless sophistication and gentle grace.',
+      primaryColour: 'Dusty Rose Pink',
+      secondaryColours: 'Mint Green, Pearl White',
+      suggestedPrice: 4200,
       attributes: {
-        pardi_style: 'Traditional Minimal',
-        embroidery_type: 'Floral satin stitch',
-        fabric: ' cambric cotton',
+        pardi_style: 'Floral Motif with Scalloped Lace',
+        embroidery_type: 'Threadwork & Chikankari Eyelet',
+        fabric: 'Cotton Silk',
+        top_colour: 'Dusty Rose Pink',
+        bottom_colour: 'Pastel Pink',
         bed_size: 'Queen',
         material: '100% Linen',
       },
@@ -43,7 +51,6 @@ export async function suggestProductDetails(
 
   // Initialize new SDK client
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   // Download the image buffer to send to Gemini
   let imageParts: any[] = [];
@@ -66,16 +73,27 @@ export async function suggestProductDetails(
   }
 
   const prompt = `
-    You are a professional luxury fashion copywriter and editorial lookbook editor for a premium boutique named "Jawhara".
-    Analyze the attached product image. The category of the product is "${categoryName}".
+    You are an expert luxury bespoke fashion copywriter and master merchandiser for a prestigious boutique named "Jawhara" (specializing in custom luxury Ridas, bespoke attire, bedding, and handcrafted home décor).
     
-    Suggest the following details:
-    1. A poetic name for the product (e.g. "Mehr-e-Bahar", "Noor-e-Jahan", "Gulnaar", "Zariyah", "Shafaq").
-    2. A short description (one elegant sentence. Keep it highly humanized, editorial, and sophisticated, e.g. "A graceful pastel floral Rida featuring intricate satin embroidery").
-    3. A full product description in a luxury, poetic, and high-end editorial lookbook style. Focus on the sensory details: the texture of the fabric, the drape, the craftsmanship of the embroidery, and the sophisticated beauty it evokes. Write like a human fashion editor, avoiding robotic or corporate sounding buzzwords.
-    4. A primary colour.
-    5. Secondary colours (comma-separated).
-    6. Suggestions for category-specific attributes (pardi_style, embroidery_type, fabric, bed_size, material).
+    Carefully inspect the attached product photograph.
+    ${categoryName ? `Target category: "${categoryName}".` : 'Determine the boutique category from the image (e.g. "Rida", "Bedding", "Décor", "Kids").'}
+    
+    Extract and generate the following detailed boutique specifications:
+    1. categoryName: The detected category ("Rida", "Bedding", "Décor", or "Kids").
+    2. name: A poetic, graceful boutique name (e.g. "Mehr-e-Bahar Rida", "Noor-e-Jahan", "Gulnaar Edit", "Zariyah Ensemble", "Shafaq Silk").
+    3. shortDesc: One elegant, editorial sentence (e.g. "A graceful pastel floral Rida featuring intricate scalloped lace borders and fine eyelet embroidery").
+    4. description: A sensory, high-end editorial lookbook description. Describe the fabric texture, weight, drape, embroidery craftsmanship, and occasion.
+    5. primaryColour: The dominant color (e.g. "Dusty Rose Pink", "Sage Green", "Ivory", "Powder Blue").
+    6. secondaryColours: Accent colors comma-separated (e.g. "Mint Green, Gold Zari, Off-White").
+    7. suggestedPrice: An estimated retail price in INR (integer, e.g. 3800 to 7500 for bespoke Ridas).
+    8. attributes:
+       - fabric: Identify the fabric weave precisely (e.g. "Cotton Silk", "French Chiffon", "Georgette", "Organza", "Linen", "Pure Cotton").
+       - embroidery_type: Specific craft technique (e.g. "Threadwork & Chikankari Eyelet", "Zardozi & Pearl Work", "Scalloped Lace Border", "Floral Applique").
+       - pardi_style: The pardi design (e.g. "Floral Motif with Scalloped Lace", "Geometric Lace Border", "Cutwork Border", "Solid Contrast Border").
+       - top_colour: Top/kurti or upper section color.
+       - bottom_colour: Bottom/lehenga or skirt section color.
+       - material: For bedding/decor (e.g. "Egyptian Cotton", "Silk Velvet").
+       - bed_size: For bedding ("Single", "Double", "Queen", "King").
   `;
 
   const modelsToTry = [
@@ -100,17 +118,21 @@ export async function suggestProductDetails(
           responseSchema: {
             type: 'OBJECT',
             properties: {
+              categoryName: { type: 'STRING' },
               name: { type: 'STRING' },
               shortDesc: { type: 'STRING' },
               description: { type: 'STRING' },
               primaryColour: { type: 'STRING' },
               secondaryColours: { type: 'STRING' },
+              suggestedPrice: { type: 'NUMBER' },
               attributes: {
                 type: 'OBJECT',
                 properties: {
                   pardi_style: { type: 'STRING' },
                   embroidery_type: { type: 'STRING' },
                   fabric: { type: 'STRING' },
+                  top_colour: { type: 'STRING' },
+                  bottom_colour: { type: 'STRING' },
                   bed_size: { type: 'STRING' },
                   material: { type: 'STRING' },
                 },
