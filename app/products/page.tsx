@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth';
 import AppShell from '@/components/AppShell';
 import { prisma } from '@/lib/prisma';
 import ReservedProductsList from './ReservedProductsList';
+import ProductsListClient from './ProductsListClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -171,7 +172,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <div className="md:col-span-2 flex items-end">
             <button
               type="submit"
-              className="w-full bg-primary-container text-on-primary-container hover:opacity-90 font-label-md py-2.5 rounded uppercase tracking-wider text-xs"
+              className="w-full bg-primary-container text-on-primary-container hover:opacity-90 font-label-md py-2.5 rounded uppercase tracking-wider text-xs cursor-pointer"
             >
               Apply Filter
             </button>
@@ -230,81 +231,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       ) : status === 'RESERVED' ? (
         <ReservedProductsList products={products as any} />
       ) : (
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
-          {(products as any[]).map((product) => {
-            const mainImg = product.images[0]?.url || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300';
-            
-            // Determine user-friendly status details
-            let statusLabel = 'Available';
-            let statusClass = 'bg-success/10 text-success border-success/20';
-
-            const isSoldOut = 
-              product.inventoryStatus === 'SOLD' || 
-              product.inventoryStatus === 'DELIVERED' || 
-              product.inventoryStatus === 'DISPATCHED' ||
-              (product.quantity <= 0);
-
-            if (product.inventoryStatus === 'RESERVED') {
-              statusLabel = 'On Hold';
-              statusClass = 'bg-warning/10 text-warning border-warning/20';
-            } else if (isSoldOut) {
-              statusLabel = 'Sold Out';
-              statusClass = 'bg-error/10 text-error border-error/20';
-            }
-
-            return (
-              <Link
-                key={product.id}
-                href={`/products/${product.id}`}
-                className="bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/20 hover:shadow-[0_4px_20px_rgba(117,85,102,0.04)] transition-all flex flex-col group"
-              >
-                {/* Photo container */}
-                <div className="aspect-[3/4] w-full bg-surface-container-low relative overflow-hidden">
-                  <img
-                    src={mainImg}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
-                  />
-                  
-                  {/* Category overlay */}
-                  <span className="absolute top-3 left-3 bg-surface/85 backdrop-blur-sm text-[9px] font-label-sm px-2 py-0.5 rounded-full uppercase tracking-wider text-on-surface border border-outline-variant/10">
-                    {product.category.name}
-                  </span>
-
-                  {/* Status Badge */}
-                  <span className={`absolute top-3 right-3 text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${statusClass}`}>
-                    {statusLabel}
-                  </span>
-                </div>
-
-                {/* Info details */}
-                <div className="p-4 flex flex-col gap-1.5 flex-grow justify-between">
-                  <div>
-                    <span className="font-label-sm text-[10px] text-outline uppercase tracking-wider">
-                      {product.productCode}
-                    </span>
-                    <h3 className="font-headline-sm text-sm md:text-base text-on-surface truncate group-hover:text-primary transition-colors">
-                      {product.name}
-                    </h3>
-                  </div>
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-outline-variant/10">
-                    <span className="font-headline-md text-sm md:text-base text-primary font-bold">
-                      ₹{Number(product.price).toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-[10px] font-medium text-on-surface-variant flex items-center gap-1">
-                      {product.isUnique ? (
-                        <span className="bg-primary/5 text-primary text-[9px] font-bold px-1.5 py-0.5 rounded border border-primary/10">Unique</span>
-                      ) : (
-                        `Stock: ${product.quantity}`
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </section>
+        <ProductsListClient products={products as any} />
       )}
     </AppShell>
   );
 }
+

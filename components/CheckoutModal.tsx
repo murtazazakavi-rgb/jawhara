@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PhoneInput from './PhoneInput';
 
 interface CheckoutModalProps {
@@ -36,6 +36,17 @@ export default function CheckoutModal({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+
+  // Lock background body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -77,30 +88,45 @@ export default function CheckoutModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-[150] p-4 animate-fade-in">
-      <div className="w-full max-w-md bg-white border border-[#E4C8CF] rounded-2xl shadow-2xl p-6 md:p-8 space-y-6 relative max-h-[90vh] overflow-y-auto">
-        
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h2 className="font-display font-semibold text-2xl text-primary uppercase tracking-widest">
-            Checkout Details
-          </h2>
-          <p className="text-xs text-outline font-label-md uppercase tracking-wider">
-            Choose Delivery or Pickup
-          </p>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4 animate-fade-in">
+      <div 
+        className="w-full max-w-lg bg-white border border-[#E4C8CF] rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden relative"
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Modal Header */}
+        <div className="px-6 py-4 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-lowest/80 shrink-0">
+          <div>
+            <h2 className="font-display font-semibold text-xl sm:text-2xl text-primary uppercase tracking-wider">
+              Checkout Details
+            </h2>
+            <p className="text-[10px] sm:text-xs text-outline font-label-md uppercase tracking-wider mt-0.5">
+              Fulfillment & Payment
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container-low rounded-full transition-colors cursor-pointer"
+            aria-label="Close modal"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
         </div>
 
-        {/* Pricing Summary */}
-        <div className="bg-surface-container-low p-4 rounded-xl flex justify-between items-center text-sm font-semibold">
-          <span className="text-on-surface-variant uppercase tracking-wider text-xs">Total Amount</span>
-          <span className="text-primary text-base font-bold">₹{price.toLocaleString('en-IN')}</span>
-        </div>
+        {/* Scrollable Form Body */}
+        <form id="checkout-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 overscroll-contain">
+          {/* Pricing Summary */}
+          <div className="bg-surface-container-low/60 p-3.5 sm:p-4 rounded-xl flex justify-between items-center text-sm font-semibold border border-outline-variant/15">
+            <span className="text-on-surface-variant uppercase tracking-wider text-xs">Total Amount</span>
+            <span className="text-primary text-lg font-bold">₹{price.toLocaleString('en-IN')}</span>
+          </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Guest Checkout Fields */}
           {showGuestFields && (
             <div className="space-y-4 border-b border-outline-variant/20 pb-4 animate-fade-in">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm">badge</span>
                 Guest Contact Information
               </h3>
               
@@ -171,7 +197,7 @@ export default function CheckoutModal({
                 onClick={() => setDeliveryMethod('DELIVERY')}
                 className={`py-3 px-4 rounded-xl border font-label-md text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                   deliveryMethod === 'DELIVERY'
-                    ? 'border-primary bg-primary/5 text-primary font-bold'
+                    ? 'border-primary bg-primary/5 text-primary font-bold shadow-xs'
                     : 'border-outline-variant/50 hover:bg-surface-container-low text-on-surface-variant'
                 }`}
               >
@@ -183,7 +209,7 @@ export default function CheckoutModal({
                 onClick={() => setDeliveryMethod('PICKUP')}
                 className={`py-3 px-4 rounded-xl border font-label-md text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                   deliveryMethod === 'PICKUP'
-                    ? 'border-primary bg-primary/5 text-primary font-bold'
+                    ? 'border-primary bg-primary/5 text-primary font-bold shadow-xs'
                     : 'border-outline-variant/50 hover:bg-surface-container-low text-on-surface-variant'
                 }`}
               >
@@ -269,25 +295,28 @@ export default function CheckoutModal({
               {error}
             </p>
           )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 border border-outline/50 hover:bg-surface-container-low text-on-surface-variant rounded-full text-xs font-label-md uppercase tracking-wider cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-3 bg-primary hover:opacity-95 text-white rounded-full text-xs font-label-md uppercase tracking-wider cursor-pointer"
-            >
-              Proceed to Pay
-            </button>
-          </div>
         </form>
+
+        {/* Sticky Action Footer (Always visible & clickable without scrolling!) */}
+        <div className="px-5 py-4 bg-white/95 backdrop-blur-md border-t border-outline-variant/20 flex gap-3 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.03)] z-20">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 border border-outline/40 hover:bg-surface-container-low text-on-surface-variant rounded-full text-xs font-label-md uppercase tracking-wider cursor-pointer font-semibold transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="checkout-modal-form"
+            className="flex-1 py-3 bg-primary hover:opacity-95 text-white rounded-full text-xs font-label-md uppercase tracking-wider cursor-pointer font-bold shadow-sm transition-all active:scale-[0.99] flex items-center justify-center gap-1.5"
+          >
+            <span>Proceed to Pay</span>
+            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
