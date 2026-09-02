@@ -40,7 +40,7 @@ export class EvolutionWhatsAppClient {
         const json = await res.json();
         const instances = json?.data || [];
         const matched =
-          instances.find((i: any) => i.name === this.instanceName) ||
+          instances.find((i: any) => i.name?.toLowerCase() === this.instanceName?.toLowerCase()) ||
           instances.find((i: any) => i.connected) ||
           instances[0];
 
