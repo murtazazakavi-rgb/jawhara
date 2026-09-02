@@ -107,7 +107,7 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
   const phoneSetting = await prisma.systemSetting.findUnique({
     where: { key: 'boutiquePhone' },
   });
-  const boutiquePhone = phoneSetting?.value || '919876543210';
+  const boutiquePhone = phoneSetting?.value || '917016527673';
 
   // 2. Fetch similar products (same category, available, excluding self)
   const similarProducts = await prisma.product.findMany({

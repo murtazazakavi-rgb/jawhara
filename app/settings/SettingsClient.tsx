@@ -92,7 +92,7 @@ export default function SettingsClient({
   const [holdMin, setHoldMin] = useState(getSettingVal('reservationHoldMinutes', '20'));
   const [expiryMin, setExpiryMin] = useState(getSettingVal('paymentLinkExpiryMinutes', '120'));
   const [currencyVal, setCurrencyVal] = useState(getSettingVal('currency', 'INR'));
-  const [boutiquePhoneVal, setBoutiquePhoneVal] = useState(getSettingVal('boutiquePhone', '919876543210'));
+  const [boutiquePhoneVal, setBoutiquePhoneVal] = useState(getSettingVal('boutiquePhone', '917016527673'));
   const [adminEmailVal, setAdminEmailVal] = useState(getSettingVal('adminEmail', ''));
   const [adminWhatsAppVal, setAdminWhatsAppVal] = useState(getSettingVal('adminWhatsAppNumber', ''));
   const [emailAlertsVal, setEmailAlertsVal] = useState(getSettingVal('enableAdminEmailAlerts', 'true') === 'true');
