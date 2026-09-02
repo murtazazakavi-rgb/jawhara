@@ -24,8 +24,106 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
       return;
     }
 
+    // Helper to format fulfillment method nicely from order notes
+    const formatFulfillment = (notes: string | null) => {
+      if (!notes) return '📦 Delivery / Boutique Fulfillment';
+      if (notes.includes('Self-Pickup') || notes.includes('PICKUP')) {
+        return '🏬 Boutique Self-Pickup (Jawhara Boutique, Mumbai)';
+      }
+      if (notes.includes('Home Delivery') || notes.includes('DELIVERY')) {
+        const addressLines = notes
+          .split('\n')
+          .filter((line) => !line.toLowerCase().includes('delivery charges'))
+          .join('\n');
+        return `📦 Home Delivery\n${addressLines}`;
+      }
+      return notes;
+    };
+
     // 2. Handle specific events
     switch (eventType) {
+      case 'ORDER_CREATED': {
+        const { orderId } = payload;
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          include: {
+            customer: true,
+            orderItems: {
+              include: { product: true },
+            },
+          },
+        });
+
+        if (!order) return;
+
+        const customer = order.customer;
+        const amountStr = Number(order.total).toLocaleString('en-IN');
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
+        const itemLines = order.orderItems
+          .map((item) => `• ${item.product.name} (Qty: ${item.quantity}) - ₹${Number(item.finalPrice).toLocaleString('en-IN')}`)
+          .join('\n');
+        const fulfillmentText = formatFulfillment(order.notes);
+
+        // A. Send Customer Order Confirmation via WhatsApp
+        if (customer.normalizedMobile) {
+          const text = `*Order Confirmation* 🛍️\n\nDear ${customer.name},\nThank you for placing your order with Jawhara.\n\n*Order Number:* ${order.orderNumber}\n*Total Amount:* ₹${amountStr}\n\n*Items:*\n${itemLines || '• 1-of-1 Luxury Piece'}\n\n*Fulfillment:*\n${fulfillmentText}\n\n🧾 *View Order Details & Receipt:*\n${siteUrl}/orders/${order.id}/receipt\n\nOur concierge will contact you for shipment updates.`;
+
+          const sendRes = await sendWhatsAppMessage({
+            to: customer.normalizedMobile,
+            type: 'text',
+            text: { body: text },
+          });
+
+          // Log outgoing message to conversation
+          if (sendRes.success) {
+            let conversation = await prisma.whatsAppConversation.findUnique({
+              where: { waId: customer.normalizedMobile },
+            });
+            if (!conversation) {
+              conversation = await prisma.whatsAppConversation.create({
+                data: {
+                  customerId: customer.id,
+                  waId: customer.normalizedMobile,
+                  lastMessageAt: new Date(),
+                },
+              });
+            }
+            await prisma.whatsAppMessage.create({
+              data: {
+                conversationId: conversation.id,
+                providerMessageId: sendRes.providerMessageId,
+                direction: MessageDirection.OUTBOUND,
+                type: 'TEXT',
+                status: MessageStatus.SENT,
+                body: text,
+                sentAt: new Date(),
+              },
+            });
+          }
+        }
+
+        // B. Send Admin WhatsApp Notification
+        const adminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'adminWhatsAppNumber' } });
+        const enableAdminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'enableAdminWhatsAppAlerts' } });
+        const adminWhatsAppNumber = adminWhatsAppSetting?.value;
+        const enableAdminWhatsApp = enableAdminWhatsAppSetting?.value !== 'false';
+
+        if (adminWhatsAppNumber && enableAdminWhatsApp) {
+          try {
+            const adminText = `[Admin Alert] 🛍️ New Order Placed!\n\n*Order:* ${order.orderNumber}\n*Amount:* ₹${amountStr}\n*Customer:* ${customer.name}\n*Phone:* ${customer.mobile || 'N/A'}\n*Status:* ${order.status}\n\n*Items:*\n${itemLines || '• 1-of-1 Luxury Piece'}\n\n*Fulfillment:*\n${fulfillmentText}\n\n*Dashboard Link:* ${siteUrl}/orders`;
+            await sendWhatsAppMessage({
+              to: adminWhatsAppNumber,
+              type: 'text',
+              text: { body: adminText },
+            });
+          } catch (waErr) {
+            console.error('Failed to send admin WhatsApp order alert:', waErr);
+          }
+        }
+
+        break;
+      }
+
       case 'PAYMENT_RECEIVED': {
         const { orderId } = payload;
         const order = await prisma.order.findUnique({
@@ -42,6 +140,11 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
 
         const customer = order.customer;
         const amountStr = Number(order.total).toLocaleString('en-IN');
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
+        const itemLines = order.orderItems
+          .map((item) => `• ${item.product.name} (Qty: ${item.quantity}) - ₹${Number(item.finalPrice).toLocaleString('en-IN')}`)
+          .join('\n');
+        const fulfillmentText = formatFulfillment(order.notes);
 
         // A. Send Customer WhatsApp Notification (if mobile is available)
         if (customer.normalizedMobile) {
@@ -51,6 +154,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
           });
 
           let sendRes;
+          let messageBodyText = '';
           if (template && template.enabled && template.metaTemplateName) {
             sendRes = await sendWhatsAppMessage({
               to: customer.normalizedMobile,
@@ -70,9 +174,11 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
                 ],
               },
             });
+            messageBodyText = `[Template: ${template.metaTemplateName}] Payment received. Order: ${order.orderNumber}, Amount: ₹${amountStr}`;
           } else {
-            // Fallback text message
-            const text = `Payment received successfully!\n\nOrder: ${order.orderNumber}\nAmount: ₹${amountStr}\n\nThank you for shopping with Jawhara. We will notify you once your order is dispatched.`;
+            // Rich fallback text message with receipt link and fulfillment info
+            const text = `*Payment Confirmed & Order Placed!* ✨\n\nDear ${customer.name},\nThank you for your purchase with Jawhara.\n\n*Order Number:* ${order.orderNumber}\n*Total Paid:* ₹${amountStr}\n\n*Items Purchased:*\n${itemLines || '• 1-of-1 Luxury Piece'}\n\n*Fulfillment:*\n${fulfillmentText}\n\n🧾 *View & Download Official Receipt:*\n${siteUrl}/orders/${order.id}/receipt\n\nOur concierge will contact you with shipping and tracking updates.`;
+            messageBodyText = text;
             sendRes = await sendWhatsAppMessage({
               to: customer.normalizedMobile,
               type: 'text',
@@ -101,7 +207,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
                 direction: MessageDirection.OUTBOUND,
                 type: 'TEXT',
                 status: MessageStatus.SENT,
-                body: `[Automated] Payment received. Order: ${order.orderNumber}, Amount: ₹${amountStr}`,
+                body: messageBodyText,
                 sentAt: new Date(),
               },
             });
@@ -124,7 +230,6 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         const enableAdminEmail = enableAdminEmailSetting?.value !== 'false';
 
         if (adminEmail && enableAdminEmail) {
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
           try {
             await sendAdminNotificationEmail(adminEmail, 'ORDER_PAID', {
               orderNumber: order.orderNumber,
@@ -146,7 +251,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
 
         if (adminWhatsAppNumber && enableAdminWhatsApp) {
           try {
-            const adminText = `[Admin Alert] New Order Paid!\nOrder: ${order.orderNumber}\nAmount: ₹${amountStr}\nCustomer: ${customer.name}\nPhone: ${customer.mobile || 'N/A'}`;
+            const adminText = `[Admin Alert] 💳 New Order Paid!\n\n*Order:* ${order.orderNumber}\n*Amount:* ₹${amountStr}\n*Customer:* ${customer.name}\n*Phone:* ${customer.mobile || 'N/A'}\n\n*Items Purchased:*\n${itemLines || '• 1-of-1 Luxury Piece'}\n\n*Fulfillment:*\n${fulfillmentText}\n\n🧾 *Receipt Link:* ${siteUrl}/orders/${order.id}/receipt\n*Dashboard:* ${siteUrl}/orders`;
             await sendWhatsAppMessage({
               to: adminWhatsAppNumber,
               type: 'text',
@@ -180,7 +285,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         }
 
         const priceStr = Number(product.price).toLocaleString('en-IN');
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
         
         const responseText = `Here is the detail of the item you inquired about:\n\n*${product.name}*\nPrice: ₹${priceStr}\nAvailability: *${product.inventoryStatus}*\n\nReview photos & specs here: ${siteUrl}/p/${product.slug}`;
 
@@ -217,6 +322,9 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
 
         const customer = order.customer;
         if (!customer.normalizedMobile) return;
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
+        const finalTrackingUrl = trackingUrl || `${siteUrl}/orders/${order.id}/receipt`;
+
         const template = await prisma.whatsAppTemplate.findUnique({
           where: { internalKey: 'ORDER_DISPATCHED' },
         });
@@ -243,7 +351,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
             },
           });
         } else {
-          const text = `Your order ${order.orderNumber} has been dispatched via ${carrier || 'Courier'}.\n\nTracking Number: ${trackingNumber}\nTracking URL: ${trackingUrl || 'N/A'}\n\nThank you for shopping with Jawhara!`;
+          const text = `*Order Dispatched!* 🚚\n\nDear ${customer.name},\nYour order *${order.orderNumber}* has been dispatched via ${carrier || 'Priority Courier'}.\n\n*Tracking Number:* ${trackingNumber}\n*Track / View Receipt:* ${finalTrackingUrl}\n\nThank you for shopping with Jawhara!`;
           sendRes = await sendWhatsAppMessage({
             to: customer.normalizedMobile,
             type: 'text',
@@ -283,20 +391,49 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
 
         const customer = reservation.customer;
         const product = reservation.product;
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
+        const holdSetting = await prisma.systemSetting.findUnique({
+          where: { key: 'reservationHoldMinutes' },
+        });
+        const holdMinutes = holdSetting?.value || '20';
+        const priceStr = Number(product.price).toLocaleString('en-IN');
 
         // 1. Notify the customer via WhatsApp
         if (customer.normalizedMobile) {
-          const holdSetting = await prisma.systemSetting.findUnique({
-            where: { key: 'reservationHoldMinutes' },
-          });
-          const holdMinutes = holdSetting?.value || '20';
-          const text = `Hi ${customer.name},\n\nWe have placed the piece "${product.name}" on hold for you for ${holdMinutes} minutes.\n\nComplete your checkout to purchase: ${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`;
+          const text = `*Piece Placed on Hold* ⏳\n\nDear ${customer.name},\nWe have placed the piece "${product.name}" on hold for you for *${holdMinutes} minutes*.\n\n• *Piece:* ${product.name} (${product.productCode})\n• *Price:* ₹${priceStr}\n\n👉 *Complete Your Purchase:* ${siteUrl}/p/${product.slug}\n*(Or view your held items at ${siteUrl}/dashboard)*\n\nIf unpaid within ${holdMinutes} minutes, the piece will automatically release back to boutique inventory.`;
           
-          await sendWhatsAppMessage({
+          const sendRes = await sendWhatsAppMessage({
             to: customer.normalizedMobile,
             type: 'text',
             text: { body: text },
           });
+
+          // Log outgoing message in conversation for CRM records
+          if (sendRes.success) {
+            let conversation = await prisma.whatsAppConversation.findUnique({
+              where: { waId: customer.normalizedMobile },
+            });
+            if (!conversation) {
+              conversation = await prisma.whatsAppConversation.create({
+                data: {
+                  customerId: customer.id,
+                  waId: customer.normalizedMobile,
+                  lastMessageAt: new Date(),
+                },
+              });
+            }
+            await prisma.whatsAppMessage.create({
+              data: {
+                conversationId: conversation.id,
+                providerMessageId: sendRes.providerMessageId,
+                direction: MessageDirection.OUTBOUND,
+                type: 'TEXT',
+                status: MessageStatus.SENT,
+                body: text,
+                sentAt: new Date(),
+              },
+            });
+          }
         }
 
         // 2. Notify the admin via Email
@@ -306,7 +443,6 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         const enableAdminEmail = enableAdminEmailSetting?.value !== 'false';
 
         if (adminEmail && enableAdminEmail) {
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
           try {
             await sendAdminNotificationEmail(adminEmail, 'RESERVATION_CREATED', {
               productName: product.name,
@@ -320,7 +456,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
           }
         }
 
-        // 3. Notify the admin via WhatsApp
+        // 3. Notify the admin / boutique via WhatsApp
         const adminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'adminWhatsAppNumber' } });
         const enableAdminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'enableAdminWhatsAppAlerts' } });
         const adminWhatsAppNumber = adminWhatsAppSetting?.value;
@@ -328,7 +464,7 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
 
         if (adminWhatsAppNumber && enableAdminWhatsApp) {
           try {
-            const adminText = `[Admin Alert] New Hold Request!\nProduct: ${product.name} (${product.productCode})\nCustomer: ${customer.name}\nPhone: ${customer.mobile || 'N/A'}`;
+            const adminText = `[Admin Alert] ⏳ New Hold Request!\n\n*Piece:* ${product.name} (${product.productCode})\n*Price:* ₹${priceStr}\n*Customer:* ${customer.name}\n*Phone:* ${customer.mobile || 'N/A'}\n*Hold Duration:* ${holdMinutes} minutes\n\n*Product Link:* ${siteUrl}/p/${product.slug}\n*Admin Dashboard:* ${siteUrl}/admin`;
             await sendWhatsAppMessage({
               to: adminWhatsAppNumber,
               type: 'text',

@@ -70,7 +70,7 @@ export async function sendEmail({
  */
 export async function sendCustomerReceiptEmail(order: any, customer: any, items: any[]) {
   const totalStr = Number(order.total).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
 
   const itemsHtml = items
     .map(
@@ -176,7 +176,7 @@ export async function sendCustomerReceiptEmail(order: any, customer: any, items:
  */
 export async function sendCustomerPaymentFailedEmail(order: any, customer: any, errorMsg?: string) {
   const totalStr = Number(order.total).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
 
   const html = `
     <!DOCTYPE html>

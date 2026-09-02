@@ -5,9 +5,7 @@ import { headers } from 'next/headers';
 class MockPaymentClient {
   async createPaymentLink(options: PaymentLinkOptions): Promise<PaymentLinkResponse> {
     const mockLinkId = `plink_${crypto.randomBytes(8).toString('hex')}`;
-    const host = (await headers()).get('host') || 'localhost:3000';
-    const protocol = host.startsWith('localhost') ? 'http' : 'https';
-    const siteUrl = `${protocol}://${host}`;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
     const mockShortUrl = `${siteUrl}/api/public/pay-mock/${mockLinkId}`;
 
     console.log('--- [MOCK PAYMENT LINK OUTBOUND] ---');

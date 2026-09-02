@@ -133,9 +133,7 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
   const isSold = product.inventoryStatus === 'SOLD' || (!product.isUnique && product.quantity <= 0);
 
   // Construct WhatsApp Inquiry link
-  const host = (await headers()).get('host') || 'localhost:3000';
-  const protocol = host.startsWith('localhost') ? 'http' : 'https';
-  const siteUrl = `${protocol}://${host}`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
   const waText = `Hi Jawhara, I am interested in inquiring about "${product.name}" (Code: ${product.productCode}). Is this piece still available?\nPrice: ₹${Number(product.price).toLocaleString('en-IN')}\nLink: ${siteUrl}/p/${product.slug}`;
   const waUrl = `https://wa.me/${boutiquePhone}?text=${encodeURIComponent(waText)}`;
 

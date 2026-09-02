@@ -36,9 +36,7 @@ export class RazorpayPaymentClient {
       return { success: false, error: 'Integration credentials missing.' };
     }
 
-    const host = (await headers()).get('host') || 'localhost:3000';
-    const protocol = host.startsWith('localhost') ? 'http' : 'https';
-    const siteUrl = `${protocol}://${host}`;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app';
 
     const url = 'https://api.razorpay.com/v1/payment_links';
     

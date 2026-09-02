@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { InventoryStatus } from '@prisma/client';
+import { emitBusinessEvent } from '@/lib/domain/automation';
 
 export async function updateOrderStatus({
   orderId,
@@ -35,6 +36,19 @@ export async function updateOrderStatus({
           inventoryStatus: 'AVAILABLE' 
         },
       });
+    }
+
+    if (status === 'DISPATCHED') {
+      try {
+        await emitBusinessEvent('ORDER_DISPATCHED', {
+          orderId,
+          trackingNumber: `TRK-${order.orderNumber}`,
+          trackingUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app'}/orders/${orderId}/receipt`,
+          carrier: 'Priority Courier',
+        });
+      } catch (err) {
+        console.error('Failed to emit ORDER_DISPATCHED:', err);
+      }
     }
 
     // Log Activity
@@ -73,6 +87,19 @@ export async function updateOrderPayment({
       data: { paymentStatus },
     });
 
+    if (paymentStatus === 'PAID') {
+      try {
+        await emitBusinessEvent('PAYMENT_RECEIVED', {
+          orderId,
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          amount: Number(order.total),
+        });
+      } catch (err) {
+        console.error('Failed to emit PAYMENT_RECEIVED:', err);
+      }
+    }
+
     // Log Activity
     await prisma.activityLog.create({
       data: {
@@ -90,3 +117,4 @@ export async function updateOrderPayment({
     return { error: err.message || 'Failed to update payment status.' };
   }
 }
+

@@ -33,7 +33,7 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
   // New Broadcast Form State
   const [name, setName] = useState('');
   const [templateKey, setTemplateKey] = useState('MARKETING_GENERIC');
-  const [body, setBody] = useState('Dear {{name}},\n\nWe have just released our new Boutique collection. Stop by our lookbook to explore: http://localhost:3000');
+  const [body, setBody] = useState('Dear {{name}},\n\nWe have just released our new Boutique collection. Stop by our lookbook to explore: https://jawhara-os.vercel.app');
   const [segmentType, setSegmentType] = useState<'all' | 'high_ltv' | 'no_orders' | 'color_sage'>('all');
   
   const [matchingCount, setMatchingCount] = useState<number | null>(null);

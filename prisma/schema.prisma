@@ -76,6 +76,7 @@ enum PaymentRequestStatus {
 
 enum WebhookProvider {
   META_WHATSAPP
+  EVOLUTION
   RAZORPAY
   SHIPROCKET
 }

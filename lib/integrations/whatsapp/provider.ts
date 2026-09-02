@@ -1,4 +1,5 @@
 import { MetaWhatsAppClient } from './meta';
+import { EvolutionWhatsAppClient } from './evolution';
 import { WhatsAppSendMessageOptions, WhatsAppSendMessageResponse } from './types';
 import crypto from 'crypto';
 
@@ -22,25 +23,39 @@ class MockWhatsAppClient {
 }
 
 /**
- * Sends a message via the configured WhatsApp provider (Meta vs. Mock).
+ * Sends a message via the configured WhatsApp provider (Evolution vs. Meta vs. Mock).
  */
 export async function sendWhatsAppMessage(
   options: WhatsAppSendMessageOptions
 ): Promise<WhatsAppSendMessageResponse> {
-  const provider = process.env.WHATSAPP_PROVIDER || 'mock';
+  const provider = process.env.WHATSAPP_PROVIDER || 'evolution';
   const hasMetaCreds = !!process.env.META_WHATSAPP_ACCESS_TOKEN && !!process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+  const hasEvolutionCreds = !!process.env.EVOLUTION_API_URL && !!process.env.EVOLUTION_API_KEY;
 
-  if (provider === 'meta' && !hasMetaCreds) {
-    console.error('ERROR: WHATSAPP_PROVIDER is set to "meta" but credentials are missing in env. Falling back to mock.');
+  if (provider === 'evolution') {
+    if (hasEvolutionCreds) {
+      const client = new EvolutionWhatsAppClient();
+      return client.sendMessage(options);
+    } else {
+      console.warn('WHATSAPP_PROVIDER is set to "evolution" but EVOLUTION_API_URL or EVOLUTION_API_KEY is missing. Falling back to mock.');
+      const client = new MockWhatsAppClient();
+      return client.sendMessage(options);
+    }
   }
 
-  const useMeta = provider === 'meta' && hasMetaCreds;
-
-  if (useMeta) {
-    const client = new MetaWhatsAppClient();
-    return client.sendMessage(options);
-  } else {
-    const client = new MockWhatsAppClient();
-    return client.sendMessage(options);
+  if (provider === 'meta') {
+    if (hasMetaCreds) {
+      const client = new MetaWhatsAppClient();
+      return client.sendMessage(options);
+    } else {
+      console.error('ERROR: WHATSAPP_PROVIDER is set to "meta" but credentials are missing in env. Falling back to mock.');
+      const client = new MockWhatsAppClient();
+      return client.sendMessage(options);
+    }
   }
+
+  // Default to mock
+  const client = new MockWhatsAppClient();
+  return client.sendMessage(options);
 }
+

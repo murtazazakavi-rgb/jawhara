@@ -49,3 +49,9 @@ next-env.d.ts
 /public/uploads/*
 !/public/uploads/.gitkeep
 
+# local archives & evolution repo
+*.zip
+evolution-go-main/
+whatsapp-business-jaspers-market-main/
+
+

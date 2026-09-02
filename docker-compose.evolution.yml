@@ -1,0 +1,69 @@
+services:
+  evolution-go:
+    image: evoapicloud/evolution-go:latest
+    container_name: jawhara-evolution-go
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Server Configuration
+      SERVER_PORT: "8080"
+      CLIENT_NAME: "Jawhara Boutique"
+
+      # Authentication & Security Key
+      GLOBAL_API_KEY: "jawhara-evolution-secret-key-2026"
+
+      # Database Configuration
+      POSTGRES_AUTH_DB: "postgresql://postgres:postgres@postgres:5432/evogo_auth?sslmode=disable"
+      POSTGRES_USERS_DB: "postgresql://postgres:postgres@postgres:5432/evogo_users?sslmode=disable"
+      DATABASE_SAVE_MESSAGES: "false"
+
+      # Webhook URL pointing to Jawhara OS webhook endpoint
+      WEBHOOK_URL: "https://jawhara-os.vercel.app/api/webhooks/evolution"
+      WEBHOOK_FILES: "true"
+
+      # Logging
+      WADEBUG: "INFO"
+      LOGTYPE: "console"
+      LOG_DIRECTORY: "/app/logs"
+
+      # Connection Settings
+      CONNECT_ON_STARTUP: "true"
+      QRCODE_MAX_COUNT: "10"
+      EVENT_IGNORE_GROUP: "false"
+      EVENT_IGNORE_STATUS: "true"
+
+    volumes:
+      - evolution_data:/app/dbdata
+      - evolution_logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - postgres
+    networks:
+      - jawhara_evolution_net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: jawhara-evolution-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    networks:
+      - jawhara_evolution_net
+
+volumes:
+  evolution_data:
+    driver: local
+  evolution_logs:
+    driver: local
+  evolution_pgdata:
+    driver: local
+
+networks:
+  jawhara_evolution_net:
+    driver: bridge

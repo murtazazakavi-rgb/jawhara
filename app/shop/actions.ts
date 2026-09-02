@@ -532,6 +532,12 @@ export async function clientCheckoutAction(data: { reservationId: string; notes?
       },
     });
 
+    try {
+      await emitBusinessEvent('ORDER_CREATED', { orderId: order.id });
+    } catch (e) {
+      console.error('Failed to emit ORDER_CREATED in clientCheckoutAction:', e);
+    }
+
     const provider = process.env.PAYMENT_PROVIDER || 'mock';
     if (provider === 'razorpay') {
       const keyId = process.env.RAZORPAY_KEY_ID;
@@ -788,6 +794,12 @@ export async function clientCartCheckoutAction(data: { items: { productId: strin
     });
 
     const { order, totalAmount } = result;
+
+    try {
+      await emitBusinessEvent('ORDER_CREATED', { orderId: order.id });
+    } catch (e) {
+      console.error('Failed to emit ORDER_CREATED in clientCartCheckoutAction:', e);
+    }
 
     const provider = process.env.PAYMENT_PROVIDER || 'mock';
     if (provider === 'razorpay') {
