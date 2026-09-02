@@ -247,16 +247,14 @@ export async function reserveProductAction(productId: string) {
       return reservation;
     });
 
-    // Emit business event for reservation creation
-    try {
-      await emitBusinessEvent('RESERVATION_CREATED', {
-        reservationId: result.id,
-        productId,
-        customerId: customer.id,
-      });
-    } catch (err) {
+    // Emit business event for reservation creation asynchronously in background (instant UI response)
+    emitBusinessEvent('RESERVATION_CREATED', {
+      reservationId: result.id,
+      productId,
+      customerId: customer.id,
+    }).catch((err) => {
       console.error('Failed to emit RESERVATION_CREATED event:', err);
-    }
+    });
 
     revalidatePath('/', 'layout');
     return { success: true, reservation: result };

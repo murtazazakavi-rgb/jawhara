@@ -398,82 +398,90 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         const holdMinutes = holdSetting?.value || '20';
         const priceStr = Number(product.price).toLocaleString('en-IN');
 
+        const tasks: Promise<any>[] = [];
+
         // 1. Notify the customer via WhatsApp
         if (customer.normalizedMobile) {
-          const text = `*Piece Placed on Hold* ⏳\n\nDear ${customer.name},\nWe have placed the piece "${product.name}" on hold for you for *${holdMinutes} minutes*.\n\n• *Piece:* ${product.name} (${product.productCode})\n• *Price:* ₹${priceStr}\n\n👉 *Complete Your Purchase:* ${siteUrl}/p/${product.slug}\n*(Or view your held items at ${siteUrl}/dashboard)*\n\nIf unpaid within ${holdMinutes} minutes, the piece will automatically release back to boutique inventory.`;
-          
-          const sendRes = await sendWhatsAppMessage({
-            to: customer.normalizedMobile,
-            type: 'text',
-            text: { body: text },
-          });
-
-          // Log outgoing message in conversation for CRM records
-          if (sendRes.success) {
-            let conversation = await prisma.whatsAppConversation.findUnique({
-              where: { waId: customer.normalizedMobile },
-            });
-            if (!conversation) {
-              conversation = await prisma.whatsAppConversation.create({
-                data: {
-                  customerId: customer.id,
-                  waId: customer.normalizedMobile,
-                  lastMessageAt: new Date(),
-                },
+          tasks.push(
+            (async () => {
+              const text = `*Piece Placed on Hold* ⏳\n\nDear ${customer.name},\nWe have placed the piece "${product.name}" on hold for you for *${holdMinutes} minutes*.\n\n• *Piece:* ${product.name} (${product.productCode})\n• *Price:* ₹${priceStr}\n\n👉 *Complete Your Purchase:* ${siteUrl}/p/${product.slug}\n*(Or view your held items at ${siteUrl}/dashboard)*\n\nIf unpaid within ${holdMinutes} minutes, the piece will automatically release back to boutique inventory.`;
+              
+              const sendRes = await sendWhatsAppMessage({
+                to: customer.normalizedMobile,
+                type: 'text',
+                text: { body: text },
               });
-            }
-            await prisma.whatsAppMessage.create({
-              data: {
-                conversationId: conversation.id,
-                providerMessageId: sendRes.providerMessageId,
-                direction: MessageDirection.OUTBOUND,
-                type: 'TEXT',
-                status: MessageStatus.SENT,
-                body: text,
-                sentAt: new Date(),
-              },
-            });
-          }
+
+              // Log outgoing message in conversation for CRM records
+              if (sendRes.success) {
+                let conversation = await prisma.whatsAppConversation.findUnique({
+                  where: { waId: customer.normalizedMobile },
+                });
+                if (!conversation) {
+                  conversation = await prisma.whatsAppConversation.create({
+                    data: {
+                      customerId: customer.id,
+                      waId: customer.normalizedMobile,
+                      lastMessageAt: new Date(),
+                    },
+                  });
+                }
+                await prisma.whatsAppMessage.create({
+                  data: {
+                    conversationId: conversation.id,
+                    providerMessageId: sendRes.providerMessageId,
+                    direction: MessageDirection.OUTBOUND,
+                    type: 'TEXT',
+                    status: MessageStatus.SENT,
+                    body: text,
+                    sentAt: new Date(),
+                  },
+                });
+              }
+            })().catch((err) => console.error('Customer reservation WhatsApp notification error:', err))
+          );
         }
 
         // 2. Notify the admin via Email
-        const adminEmailSetting = await prisma.systemSetting.findUnique({ where: { key: 'adminEmail' } });
-        const enableAdminEmailSetting = await prisma.systemSetting.findUnique({ where: { key: 'enableAdminEmailAlerts' } });
-        const adminEmail = adminEmailSetting?.value;
-        const enableAdminEmail = enableAdminEmailSetting?.value !== 'false';
+        tasks.push(
+          (async () => {
+            const adminEmailSetting = await prisma.systemSetting.findUnique({ where: { key: 'adminEmail' } });
+            const enableAdminEmailSetting = await prisma.systemSetting.findUnique({ where: { key: 'enableAdminEmailAlerts' } });
+            const adminEmail = adminEmailSetting?.value;
+            const enableAdminEmail = enableAdminEmailSetting?.value !== 'false';
 
-        if (adminEmail && enableAdminEmail) {
-          try {
-            await sendAdminNotificationEmail(adminEmail, 'RESERVATION_CREATED', {
-              productName: product.name,
-              productCode: product.productCode,
-              customerName: customer.name,
-              customerEmail: customer.email || undefined,
-              dashboardLink: `${siteUrl}/admin`,
-            });
-          } catch (err) {
-            console.error('Failed to send admin reservation email:', err);
-          }
-        }
+            if (adminEmail && enableAdminEmail) {
+              await sendAdminNotificationEmail(adminEmail, 'RESERVATION_CREATED', {
+                productName: product.name,
+                productCode: product.productCode,
+                customerName: customer.name,
+                customerEmail: customer.email || undefined,
+                dashboardLink: `${siteUrl}/admin`,
+              });
+            }
+          })().catch((err) => console.error('Admin reservation email notification error:', err))
+        );
 
         // 3. Notify the admin / boutique via WhatsApp
-        const adminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'adminWhatsAppNumber' } });
-        const enableAdminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'enableAdminWhatsAppAlerts' } });
-        const adminWhatsAppNumber = adminWhatsAppSetting?.value;
-        const enableAdminWhatsApp = enableAdminWhatsAppSetting?.value !== 'false';
+        tasks.push(
+          (async () => {
+            const adminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'adminWhatsAppNumber' } });
+            const enableAdminWhatsAppSetting = await prisma.systemSetting.findUnique({ where: { key: 'enableAdminWhatsAppAlerts' } });
+            const adminWhatsAppNumber = adminWhatsAppSetting?.value;
+            const enableAdminWhatsApp = enableAdminWhatsAppSetting?.value !== 'false';
 
-        if (adminWhatsAppNumber && enableAdminWhatsApp) {
-          try {
-            const adminText = `[Admin Alert] ⏳ New Hold Request!\n\n*Piece:* ${product.name} (${product.productCode})\n*Price:* ₹${priceStr}\n*Customer:* ${customer.name}\n*Phone:* ${customer.mobile || 'N/A'}\n*Hold Duration:* ${holdMinutes} minutes\n\n*Product Link:* ${siteUrl}/p/${product.slug}\n*Admin Dashboard:* ${siteUrl}/admin`;
-            await sendWhatsAppMessage({
-              to: adminWhatsAppNumber,
-              type: 'text',
-              text: { body: adminText },
-            });
-          } catch (err) {
-            console.error('Failed to send admin reservation WhatsApp alert:', err);
-          }
-        }
+            if (adminWhatsAppNumber && enableAdminWhatsApp) {
+              const adminText = `[Admin Alert] ⏳ New Hold Request!\n\n*Piece:* ${product.name} (${product.productCode})\n*Price:* ₹${priceStr}\n*Customer:* ${customer.name}\n*Phone:* ${customer.mobile || 'N/A'}\n*Hold Duration:* ${holdMinutes} minutes\n\n*Product Link:* ${siteUrl}/p/${product.slug}\n*Admin Dashboard:* ${siteUrl}/admin`;
+              await sendWhatsAppMessage({
+                to: adminWhatsAppNumber,
+                type: 'text',
+                text: { body: adminText },
+              });
+            }
+          })().catch((err) => console.error('Admin reservation WhatsApp alert error:', err))
+        );
+
+        await Promise.allSettled(tasks);
         break;
       }
 

@@ -8,8 +8,15 @@ export class EvolutionWhatsAppClient {
   private tokenExpiresAt: number = 0;
 
   constructor() {
-    this.apiUrl = (process.env.EVOLUTION_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
-    this.apiKey = process.env.EVOLUTION_API_KEY || '';
+    const rawUrl = process.env.EVOLUTION_API_URL || '';
+    // If in production and URL is localhost or missing, fallback to live Render instance
+    if ((!rawUrl || rawUrl.includes('localhost')) && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
+      this.apiUrl = 'https://evolution-go-latest-uaa3.onrender.com';
+    } else {
+      this.apiUrl = (rawUrl || 'https://evolution-go-latest-uaa3.onrender.com').replace(/\/+$/, '');
+    }
+
+    this.apiKey = process.env.EVOLUTION_API_KEY || 'jawhara-evolution-secret-key-2026';
     this.instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'jawhara';
   }
 
@@ -35,6 +42,7 @@ export class EvolutionWhatsAppClient {
     try {
       const res = await fetch(`${this.apiUrl}/instance/all`, {
         headers: { apikey: this.apiKey },
+        signal: AbortSignal.timeout(6000),
       });
       if (res.ok) {
         const json = await res.json();
@@ -119,6 +127,7 @@ export class EvolutionWhatsAppClient {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(6000),
         });
 
         const data = await response.json();
@@ -147,6 +156,7 @@ export class EvolutionWhatsAppClient {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(6000),
         });
 
         const data = await response.json();
