@@ -401,13 +401,14 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         const tasks: Promise<any>[] = [];
 
         // 1. Notify the customer via WhatsApp
-        if (customer.normalizedMobile) {
+        const customerMobile = customer.normalizedMobile;
+        if (customerMobile) {
           tasks.push(
             (async () => {
               const text = `*Piece Placed on Hold* ⏳\n\nDear ${customer.name},\nWe have placed the piece "${product.name}" on hold for you for *${holdMinutes} minutes*.\n\n• *Piece:* ${product.name} (${product.productCode})\n• *Price:* ₹${priceStr}\n\n👉 *Complete Your Purchase:* ${siteUrl}/p/${product.slug}\n*(Or view your held items at ${siteUrl}/dashboard)*\n\nIf unpaid within ${holdMinutes} minutes, the piece will automatically release back to boutique inventory.`;
               
               const sendRes = await sendWhatsAppMessage({
-                to: customer.normalizedMobile,
+                to: customerMobile,
                 type: 'text',
                 text: { body: text },
               });
@@ -415,13 +416,13 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
               // Log outgoing message in conversation for CRM records
               if (sendRes.success) {
                 let conversation = await prisma.whatsAppConversation.findUnique({
-                  where: { waId: customer.normalizedMobile },
+                  where: { waId: customerMobile },
                 });
                 if (!conversation) {
                   conversation = await prisma.whatsAppConversation.create({
                     data: {
                       customerId: customer.id,
-                      waId: customer.normalizedMobile,
+                      waId: customerMobile,
                       lastMessageAt: new Date(),
                     },
                   });
