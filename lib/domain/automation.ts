@@ -544,6 +544,126 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
         break;
       }
 
+      case 'SHIPMENT_PICKED_UP': {
+        const { orderId, awb, courierName } = payload;
+        const notifSetting = await prisma.systemSetting.findUnique({
+          where: { key: 'notify_shipment_picked_up' },
+        });
+        if (notifSetting?.value === 'false') break;
+
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          include: { customer: true },
+        });
+        if (!order?.customer.normalizedMobile) break;
+
+        const text = `*Your order has been picked up* 📦\n\nDear ${order.customer.name},\n\nYour Jawhara order *${order.orderNumber}* has been picked up by *${courierName || 'our courier partner'}* and is on its way to you.\n\n*Tracking:* ${awb}\n\nThank you for shopping with Jawhara! ✨`;
+        const sendRes = await sendWhatsAppMessage({
+          to: order.customer.normalizedMobile,
+          type: 'text',
+          text: { body: text },
+        });
+        if (sendRes.success) {
+          const conv = await prisma.whatsAppConversation.findUnique({
+            where: { waId: order.customer.normalizedMobile },
+          });
+          if (conv) {
+            await prisma.whatsAppMessage.create({
+              data: {
+                conversationId: conv.id,
+                providerMessageId: sendRes.providerMessageId,
+                direction: MessageDirection.OUTBOUND,
+                type: 'TEXT',
+                status: MessageStatus.SENT,
+                body: text,
+                sentAt: new Date(),
+              },
+            });
+          }
+        }
+        break;
+      }
+
+      case 'SHIPMENT_OUT_FOR_DELIVERY': {
+        const { orderId, awb, courierName } = payload;
+        const notifSetting = await prisma.systemSetting.findUnique({
+          where: { key: 'notify_shipment_out_for_delivery' },
+        });
+        if (notifSetting?.value === 'false') break;
+
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          include: { customer: true },
+        });
+        if (!order?.customer.normalizedMobile) break;
+
+        const text = `*Out for Delivery* 🚚\n\nDear ${order.customer.name},\n\nYour Jawhara order *${order.orderNumber}* is out for delivery today!\n\nPlease ensure someone is available to receive it.\n\n*Tracking:* ${awb}\n\nThank you for your patience — we hope you love your piece! ✨`;
+        const sendRes = await sendWhatsAppMessage({
+          to: order.customer.normalizedMobile,
+          type: 'text',
+          text: { body: text },
+        });
+        if (sendRes.success) {
+          const conv = await prisma.whatsAppConversation.findUnique({
+            where: { waId: order.customer.normalizedMobile },
+          });
+          if (conv) {
+            await prisma.whatsAppMessage.create({
+              data: {
+                conversationId: conv.id,
+                providerMessageId: sendRes.providerMessageId,
+                direction: MessageDirection.OUTBOUND,
+                type: 'TEXT',
+                status: MessageStatus.SENT,
+                body: text,
+                sentAt: new Date(),
+              },
+            });
+          }
+        }
+        break;
+      }
+
+      case 'SHIPMENT_DELIVERED': {
+        const { orderId, awb } = payload;
+        const notifSetting = await prisma.systemSetting.findUnique({
+          where: { key: 'notify_shipment_delivered' },
+        });
+        if (notifSetting?.value === 'false') break;
+
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          include: { customer: true },
+        });
+        if (!order?.customer.normalizedMobile) break;
+
+        const text = `*Order Delivered* ✅\n\nDear ${order.customer.name},\n\nYour Jawhara order *${order.orderNumber}* has been delivered.\n\nWe hope you absolutely love your piece! If you have any questions, please don't hesitate to reach out.\n\nThank you for being a valued Jawhara customer. 💎`;
+        const sendRes = await sendWhatsAppMessage({
+          to: order.customer.normalizedMobile,
+          type: 'text',
+          text: { body: text },
+        });
+        if (sendRes.success) {
+          const conv = await prisma.whatsAppConversation.findUnique({
+            where: { waId: order.customer.normalizedMobile },
+          });
+          if (conv) {
+            await prisma.whatsAppMessage.create({
+              data: {
+                conversationId: conv.id,
+                providerMessageId: sendRes.providerMessageId,
+                direction: MessageDirection.OUTBOUND,
+                type: 'TEXT',
+                status: MessageStatus.SENT,
+                body: text,
+                sentAt: new Date(),
+              },
+            });
+          }
+        }
+        break;
+      }
+
       default:
         console.log(`No automated action configured for event type: ${eventType}`);
     }
