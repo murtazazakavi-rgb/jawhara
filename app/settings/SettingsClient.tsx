@@ -49,7 +49,6 @@ interface StaffUser {
   name: string;
   email: string;
   role: 'OWNER' | 'ADMIN' | 'SALES';
-  rawPassword?: string;
   createdAt: Date;
 }
 
@@ -1002,7 +1001,6 @@ export default function SettingsClient({
                       <th className="font-label-md text-xs text-outline uppercase py-3 pr-4">Name</th>
                       <th className="font-label-md text-xs text-outline uppercase py-3 pr-4">Email Address</th>
                       <th className="font-label-md text-xs text-outline uppercase py-3 pr-4 font-semibold">Role</th>
-                      <th className="font-label-md text-xs text-outline uppercase py-3 pr-4">Password</th>
                       <th className="font-label-md text-xs text-outline uppercase py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -1021,9 +1019,6 @@ export default function SettingsClient({
                           }`}>
                             {staff.role}
                           </span>
-                        </td>
-                        <td className="font-mono text-xs py-4 pr-4 text-on-surface-variant font-bold">
-                          {currentUserRole === 'OWNER' ? staff.rawPassword : '••••••••'}
                         </td>
                         <td className="font-body-md text-sm py-4 text-right">
                           <button

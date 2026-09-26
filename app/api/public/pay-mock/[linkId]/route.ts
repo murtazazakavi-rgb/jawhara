@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { mockPaymentsAreAllowed } from '@/lib/security/payments';
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ linkId: string }> }
 ) {
+  if (!mockPaymentsAreAllowed()) {
+    return new Response('Not Found', { status: 404 });
+  }
+
   const { linkId } = await params;
 
   try {

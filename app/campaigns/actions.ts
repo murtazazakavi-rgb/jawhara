@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
+import { getUserWithCapability } from '@/lib/authz';
 import { sendWhatsAppMessage } from '@/lib/integrations/whatsapp/provider';
 import { revalidatePath } from 'next/cache';
 
@@ -67,8 +67,8 @@ async function fetchSegmentCustomers(rules: SegmentRules) {
  * Gets campaigns with basic details.
  */
 export async function getCampaigns() {
-  const user = await getCurrentUser();
-  if (!user || user.role === 'SALES') throw new Error('Unauthorized.');
+  const user = await getUserWithCapability('MANAGE_CAMPAIGNS');
+  if (!user) throw new Error('Unauthorized.');
 
   return prisma.campaign.findMany({
     orderBy: { createdAt: 'desc' },
@@ -79,8 +79,8 @@ export async function getCampaigns() {
  * Queries counts of customers in a specific segment.
  */
 export async function getSegmentCustomerCount(rules: SegmentRules) {
-  const user = await getCurrentUser();
-  if (!user || user.role === 'SALES') throw new Error('Unauthorized.');
+  const user = await getUserWithCapability('MANAGE_CAMPAIGNS');
+  if (!user) throw new Error('Unauthorized.');
 
   const matches = await fetchSegmentCustomers(rules);
   return matches.length;
@@ -95,8 +95,8 @@ export async function createCampaignBroadcast(data: {
   body: string;
   rules: SegmentRules;
 }) {
-  const user = await getCurrentUser();
-  if (!user || user.role === 'SALES') return { error: 'Unauthorized.' };
+  const user = await getUserWithCapability('MANAGE_CAMPAIGNS');
+  if (!user) return { error: 'Unauthorized.' };
 
   try {
     const matchingCustomers = await fetchSegmentCustomers(data.rules);
@@ -192,8 +192,8 @@ export async function createCampaignBroadcast(data: {
  * Computes deep campaign analytics including 7-day revenue attribution.
  */
 export async function getCampaignAnalytics(campaignId: string) {
-  const user = await getCurrentUser();
-  if (!user || user.role === 'SALES') throw new Error('Unauthorized.');
+  const user = await getUserWithCapability('MANAGE_CAMPAIGNS');
+  if (!user) throw new Error('Unauthorized.');
 
   const campaign = await prisma.campaign.findUnique({
     where: { id: campaignId },
@@ -237,10 +237,6 @@ export async function getCampaignAnalytics(campaignId: string) {
     });
   }
 
-  // Realistic mock conversion statistics for visual beauty
-  const openRate = campaign.sentCount > 0 ? 68.5 : 0;
-  const clickRate = campaign.sentCount > 0 ? 18.2 : 0;
-
   return {
     id: campaign.id,
     name: campaign.name,
@@ -249,8 +245,8 @@ export async function getCampaignAnalytics(campaignId: string) {
     status: campaign.status,
     sentCount: campaign.sentCount,
     failedCount: campaign.failedCount,
-    openRate,
-    clickRate,
+    openRate: null,
+    clickRate: null,
     totalAttributedRevenue,
     attributedOrders,
   };

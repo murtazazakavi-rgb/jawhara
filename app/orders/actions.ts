@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
+import { getUserWithCapability } from '@/lib/authz';
 import { revalidatePath } from 'next/cache';
 import { InventoryStatus } from '@prisma/client';
 import { emitBusinessEvent } from '@/lib/domain/automation';
@@ -13,7 +13,7 @@ export async function updateOrderStatus({
   orderId: string;
   status: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await getUserWithCapability('MANAGE_ORDERS');
   if (!user) {
     return { error: 'Unauthorized.' };
   }
@@ -76,7 +76,7 @@ export async function updateOrderPayment({
   orderId: string;
   paymentStatus: 'PAID' | 'UNPAID' | 'REFUNDED';
 }) {
-  const user = await getCurrentUser();
+  const user = await getUserWithCapability('MANAGE_ORDERS');
   if (!user) {
     return { error: 'Unauthorized.' };
   }
@@ -117,4 +117,3 @@ export async function updateOrderPayment({
     return { error: err.message || 'Failed to update payment status.' };
   }
 }
-

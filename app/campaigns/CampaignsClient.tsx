@@ -362,12 +362,12 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
                     <span className="font-display font-bold text-headline-md text-on-surface">{analytics.sentCount}</span>
                   </div>
                   <div className="text-center border-l border-outline-variant/15">
-                    <span className="text-[9px] uppercase tracking-wider text-outline block">Estimated Opens</span>
-                    <span className="font-display font-bold text-headline-md text-on-surface">{analytics.openRate}%</span>
+                    <span className="text-[9px] uppercase tracking-wider text-outline block">Message Opens</span>
+                    <span className="font-display font-bold text-sm text-on-surface">Not tracked</span>
                   </div>
                   <div className="text-center border-l border-outline-variant/15">
                     <span className="text-[9px] uppercase tracking-wider text-outline block">Link Clicks</span>
-                    <span className="font-display font-bold text-headline-md text-on-surface">{analytics.clickRate}%</span>
+                    <span className="font-display font-bold text-sm text-on-surface">Not tracked</span>
                   </div>
                   <div className="text-center border-l border-outline-variant/15 bg-primary/5 rounded p-1">
                     <span className="text-[9px] uppercase tracking-wider text-primary font-semibold block">Attributed LTV</span>

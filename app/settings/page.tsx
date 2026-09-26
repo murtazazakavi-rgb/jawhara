@@ -13,6 +13,9 @@ export default async function SettingsPage() {
   if (!user) {
     redirect('/admin/login');
   }
+  if (user.role === 'SALES') {
+    redirect('/admin');
+  }
 
   // 1. Fetch template mappings
   const templates = await prisma.whatsAppTemplate.findMany({
@@ -103,7 +106,6 @@ export default async function SettingsPage() {
       name: true,
       email: true,
       role: true,
-      rawPassword: true,
       createdAt: true,
     },
     orderBy: { email: 'asc' },

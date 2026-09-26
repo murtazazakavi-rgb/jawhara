@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
+import { getUserWithCapability } from '@/lib/authz';
 import { revalidatePath } from 'next/cache';
 import * as bcrypt from 'bcryptjs';
 
@@ -9,8 +9,8 @@ import * as bcrypt from 'bcryptjs';
  * Saves a system setting key-value pair.
  */
 export async function saveSystemSetting(key: string, value: string) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -37,8 +37,8 @@ export async function saveWhatsAppTemplate(data: {
   languageCode: string;
   enabled: boolean;
 }) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -73,8 +73,8 @@ export async function createCategoryAction(data: {
   code: string;
   description?: string;
 }) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -111,8 +111,8 @@ export async function createCategoryAction(data: {
  * Toggles the active status of a category.
  */
 export async function toggleCategoryActiveAction(id: string, isActive: boolean) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -139,8 +139,8 @@ export async function createStaffUserAction(data: {
   role: 'OWNER' | 'ADMIN' | 'SALES';
   password: string;
 }) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -162,7 +162,6 @@ export async function createStaffUserAction(data: {
         name: data.name.trim(),
         email: data.email.toLowerCase().trim(),
         password: hashedPassword,
-        rawPassword: data.password,
         role: data.role,
       },
     });
@@ -189,8 +188,8 @@ export async function createStaffUserAction(data: {
  * Deletes an administrative staff member.
  */
 export async function deleteStaffUserAction(targetId: string) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -238,8 +237,8 @@ export async function createCollectionAction(data: {
   description?: string;
   coverImage?: string;
 }) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -276,8 +275,8 @@ export async function createCollectionAction(data: {
  * Toggles the active status of a collection.
  */
 export async function toggleCollectionStatusAction(id: string, status: string) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -299,8 +298,8 @@ export async function toggleCollectionStatusAction(id: string, status: string) {
  * Deletes a collection.
  */
 export async function deleteCollectionAction(id: string) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'OWNER' && user.role !== 'ADMIN') {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
     return { error: 'Unauthorized.' };
   }
 
@@ -324,4 +323,3 @@ export async function deleteCollectionAction(id: string) {
     return { error: error.message || 'Failed to delete collection.' };
   }
 }
-

@@ -1,22 +1,24 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { getCurrentCustomer } from '@/lib/clientAuth';
-import { getCurrentUser } from '@/lib/auth';
+import { getUserWithCapability } from '@/lib/authz';
 
 export async function POST(request: Request) {
   try {
-    // 1. Authenticate user
-    const customer = await getCurrentCustomer();
-    const admin = await getCurrentUser();
-    if (!customer && !admin) {
-      return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
+    // This endpoint exists only for the local Razorpay diagnostic screen.
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+    }
+
+    const admin = await getUserWithCapability('MANAGE_SETTINGS');
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
     // 2. Parse and validate request
     let body;
     try {
       body = await request.json();
-    } catch (e) {
+    } catch {
       return NextResponse.json({ error: 'Invalid JSON request body.' }, { status: 400 });
     }
 

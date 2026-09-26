@@ -6,7 +6,9 @@
     "dev": "next dev --webpack",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:phase1": "node --test --experimental-strip-types tests/phase1-security.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.18.0",

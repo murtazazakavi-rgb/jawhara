@@ -37,8 +37,13 @@ enum ReservationStatus {
 enum OrderStatus {
   PENDING
   PACKING
+  READY_FOR_PICKUP
+  PICKUP_REQUESTED
   DISPATCHED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
   DELIVERED
+  DELIVERY_FAILED
   RETURNED
 }
 
@@ -91,6 +96,26 @@ enum AutomationStatus {
   PENDING
   EXECUTED
   FAILED
+}
+
+enum ShipmentStatus {
+  CREATED
+  READY_FOR_PICKUP
+  PICKUP_REQUESTED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  DELIVERY_FAILED
+  RTO
+  CANCELLED
+}
+
+enum AIApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISMISSED
 }
 
 model User {
@@ -244,29 +269,37 @@ model Reservation {
 }
 
 model Order {
-  id            String               @id @default(uuid())
-  orderNumber   String               @unique // e.g. ORD-10001
-  customerId    String
-  customer      Customer             @relation(fields: [customerId], references: [id])
-  status        OrderStatus          @default(PENDING)
-  paymentStatus PaymentStatus        @default(UNPAID)
-  subtotal      Decimal              @db.Decimal(10, 2)
-  discount      Decimal              @default(0.0) @db.Decimal(10, 2)
-  total         Decimal              @db.Decimal(10, 2)
-  currency      String               @default("INR")
-  notes         String?
-  salespersonId String? // ID of User
-  orderItems    OrderItem[]
-  payments      PaymentRequest[]
-  transactions  PaymentTransaction[]
-  shipments     Shipment[]
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  id              String               @id @default(uuid())
+  orderNumber     String               @unique // e.g. ORD-10001
+  customerId      String
+  customer        Customer             @relation(fields: [customerId], references: [id])
+  status          OrderStatus          @default(PENDING)
+  paymentStatus   PaymentStatus        @default(UNPAID)
+  subtotal        Decimal              @db.Decimal(10, 2)
+  discount        Decimal              @default(0.0) @db.Decimal(10, 2)
+  total           Decimal              @db.Decimal(10, 2)
+  currency        String               @default("INR")
+  notes           String?
+  salespersonId   String? // ID of User
+  // Delivery address (filled when arranging pickup)
+  deliveryName    String?
+  deliveryPhone   String?
+  deliveryAddress String?
+  deliveryCity    String?
+  deliveryState   String?
+  deliveryPincode String?
+  orderItems      OrderItem[]
+  payments        PaymentRequest[]
+  transactions    PaymentTransaction[]
+  shipments       Shipment[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@index([customerId])
   @@index([status])
   @@index([paymentStatus])
 }
+
 
 model OrderItem {
   id         String   @id @default(uuid())
@@ -417,19 +450,82 @@ model CustomerInteraction {
 }
 
 model Shipment {
-  id             String    @id @default(uuid())
-  orderId        String
-  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  provider       String    @default("MANUAL")
-  awb            String?
-  trackingNumber String?
-  trackingUrl    String?
-  status         String    @default("PENDING") // PENDING, DISPATCHED, DELIVERED
-  dispatchedAt   DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                   String         @id @default(uuid())
+  orderId              String
+  order                Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Delivery mode: SHIPROCKET | MANUAL | LOCAL | CUSTOMER_PICKUP
+  provider             String         @default("MANUAL")
+
+  // Provider identifiers (Shiprocket specific)
+  providerOrderId      String?        // Shiprocket order_id
+  providerShipmentId   String?        // Shiprocket shipment_id
+
+  // Courier details
+  courierId            Int?           // Shiprocket courier_company_id
+  courierName          String?
+  awb                  String?        @unique
+
+  // Normalized status
+  status               ShipmentStatus @default(CREATED)
+
+  // Pickup tracking
+  pickupStatus         String?
+  pickupRequestedAt    DateTime?
+  estimatedPickupAt    DateTime?
+  pickedUpAt           DateTime?
+
+  // Delivery
+  trackingUrl          String?
+  estimatedDeliveryAt  DateTime?
+  deliveredAt          DateTime?
+  lastTrackingUpdateAt DateTime?
+
+  // Costs
+  shippingCost         Decimal?       @db.Decimal(10, 2)
+
+  // Parcel dimensions (entered by staff when arranging pickup)
+  weight               Decimal?       @db.Decimal(6, 3)  // kg
+  length               Decimal?       @db.Decimal(6, 1)  // cm
+  breadth              Decimal?       @db.Decimal(6, 1)  // cm
+  height               Decimal?       @db.Decimal(6, 1)  // cm
+
+  // Label
+  labelUrl             String?
+
+  // Manual courier fields (backward compat)
+  trackingNumber       String?
+  courierContactNumber String?
+  courierNotes         String?
+
+  // Provider error detail — server-side only, never sent to client
+  lastProviderError    String?
+
+  events               ShipmentEvent[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@index([orderId])
+  @@index([awb])
+  @@index([status])
 }
+
+model ShipmentEvent {
+  id               String    @id @default(uuid())
+  shipmentId       String
+  shipment         Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  providerStatus   String    // Raw status string from courier/Shiprocket
+  normalizedStatus String?   // Mapped to ShipmentStatus enum name
+  location         String?
+  description      String?
+  eventTime        DateTime
+  rawPayload       Json?
+  createdAt        DateTime  @default(now())
+
+  @@index([shipmentId])
+  @@index([eventTime])
+}
+
 
 model WhatsAppTemplate {
   id               String   @id @default(uuid())
@@ -491,4 +587,61 @@ model OtpCode {
   code      String
   createdAt DateTime @default(now())
   expiresAt DateTime
+}
+
+// ─── Jawhara AI ──────────────────────────────────────────────────────────────
+
+model AISuggestion {
+  id          String    @id @default(uuid())
+  type        String    // TODAY_SUMMARY, FOLLOW_UP, DORMANT_CUSTOMER, PRODUCT_MATCH, EXPIRING_RESERVATION, OUTSTANDING_PAYMENT, MISSING_DESCRIPTION, READY_FOR_PICKUP, DELAYED_SHIPMENT
+  entityType  String?   // ORDER, CUSTOMER, PRODUCT, SHIPMENT, RESERVATION
+  entityId    String?
+  title       String
+  body        String
+  priority    String    @default("NORMAL") // HIGH | NORMAL | LOW
+  isRead      Boolean   @default(false)
+  isDismissed Boolean   @default(false)
+  expiresAt   DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([type])
+  @@index([isDismissed, isRead])
+  @@index([createdAt])
+}
+
+model AIApproval {
+  id              String           @id @default(uuid())
+  type            String           // WHATSAPP_MESSAGE | CAMPAIGN | DISCOUNT | PRICE_CHANGE | BULK_COMMUNICATION | FOLLOW_UP_TASK
+  entityType      String?          // ORDER, CUSTOMER, PRODUCT
+  entityId        String?
+  title           String
+  rationale       String
+  proposedContent Json?            // The draft content for review
+  impact          String?          // Human-readable impact summary
+  status          AIApprovalStatus @default(PENDING)
+  reviewedBy      String?          // User ID who reviewed
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AIExecution {
+  id            String   @id @default(uuid())
+  tool          String   // getCustomerProfile | prepareWhatsAppDraft | etc.
+  userId        String?
+  sessionId     String?
+  inputSummary  String?
+  outputSummary String?
+  durationMs    Int?
+  success       Boolean  @default(true)
+  error         String?
+  createdAt     DateTime @default(now())
+
+  @@index([tool])
+  @@index([createdAt])
 }

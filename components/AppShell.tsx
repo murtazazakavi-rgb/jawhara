@@ -308,14 +308,16 @@ export default function AppShell({ children, user }: AppShellProps) {
                     <span className="material-symbols-outlined text-sm text-primary">shopping_basket</span>
                     Customer View
                   </Link>
-                  <Link
-                    href="/settings"
-                    onClick={() => setShowProfileMenu(false)}
-                    className="font-label-sm text-on-surface hover:bg-surface-container-low px-3 py-2 rounded flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-sm">settings</span>
-                    Settings
-                  </Link>
+                  {user && user.role !== 'SALES' ? (
+                    <Link
+                      href="/settings"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="font-label-sm text-on-surface hover:bg-surface-container-low px-3 py-2 rounded flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-sm">settings</span>
+                      Settings
+                    </Link>
+                  ) : null}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left font-label-sm text-error hover:bg-error-container/15 px-3 py-2 rounded flex items-center gap-2"
@@ -485,16 +487,18 @@ export default function AppShell({ children, user }: AppShellProps) {
               )}
 
               {/* Settings */}
-              <Link
-                href="/settings"
-                onClick={() => setShowMoreMenu(false)}
-                className={`flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm transition-all ${
-                  pathname.startsWith('/settings') ? 'bg-primary-container/20 text-primary font-semibold' : 'text-on-surface-variant hover:bg-surface-container-low/30'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[22px]">settings</span>
-                System Settings
-              </Link>
+              {user && user.role !== 'SALES' ? (
+                <Link
+                  href="/settings"
+                  onClick={() => setShowMoreMenu(false)}
+                  className={`flex items-center gap-3.5 p-3.5 rounded-xl font-label-md text-sm transition-all ${
+                    pathname.startsWith('/settings') ? 'bg-primary-container/20 text-primary font-semibold' : 'text-on-surface-variant hover:bg-surface-container-low/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[22px]">settings</span>
+                  System Settings
+                </Link>
+              ) : null}
 
               {/* Customer View toggle */}
               <Link

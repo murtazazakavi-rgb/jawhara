@@ -3,14 +3,19 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import Razorpay from 'razorpay';
 import { emitBusinessEvent } from '@/lib/domain/automation';
-import { 
-  OrderStatus, 
-  PaymentStatus, 
-  PaymentRequestStatus, 
-  ReservationStatus, 
-  InventoryStatus 
-} from '@prisma/client';
+import { finalizePayment } from '@/lib/domain/payments';
 
+/**
+ * POST /api/verify-payment
+ *
+ * Called by the client-side after Razorpay redirect/callback.
+ * Verifies the Razorpay signature and delegates payment finalization
+ * to the single shared finalizePayment() function.
+ *
+ * This path is idempotent — if the Razorpay webhook already processed
+ * the payment, finalizePayment() will return { alreadyProcessed: true }
+ * and the client still receives a success response.
+ */
 export async function POST(request: Request) {
   let body: any = null;
   try {
@@ -22,7 +27,7 @@ export async function POST(request: Request) {
 
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
 
-    // Validate missing fields
+    // Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
@@ -35,16 +40,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Razorpay configuration error.' }, { status: 500 });
     }
 
-    // 1. Verify payment signature
-    // Algorithm: HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
+    // ── 1. Verify Razorpay signature ─────────────────────────────────────────
+    // HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
     const expectedSignature = crypto
       .createHmac('sha256', keySecret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
     if (expectedSignature !== razorpay_signature) {
-      console.warn('Razorpay signature verification failed.');
-      // Find order to trigger failure notification
+      console.warn('[verify-payment] Razorpay signature verification failed.');
+      // Emit failure event for audit
       const pr = await prisma.paymentRequest.findUnique({
         where: { providerPaymentLinkId: razorpay_order_id },
       });
@@ -52,159 +57,73 @@ export async function POST(request: Request) {
         try {
           await emitBusinessEvent('PAYMENT_FAILED', {
             orderId: pr.orderId,
-            errorMsg: 'Razorpay signature verification failed. Secure payment check mismatch.',
+            errorMsg: 'Razorpay signature verification failed.',
           });
         } catch (eventErr) {
-          console.error('Failed to emit PAYMENT_FAILED:', eventErr);
+          console.error('[verify-payment] Failed to emit PAYMENT_FAILED:', eventErr);
         }
       }
-      return NextResponse.json({ error: 'Signature mismatch. Verification failed.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Signature mismatch. Verification failed.' },
+        { status: 400 }
+      );
     }
 
-    // 2. Fetch payment details from Razorpay API to record transaction accurately
-    const razorpay = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
-    });
+    // ── 2. Fetch payment details from Razorpay for accurate amount/method ────
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
 
     let paymentDetails: any = null;
     try {
       paymentDetails = await razorpay.payments.fetch(razorpay_payment_id);
     } catch (apiErr) {
-      console.error('Error fetching payment details from Razorpay:', apiErr);
+      console.error('[verify-payment] Error fetching payment details from Razorpay:', apiErr);
+      // Continue — finalizePayment will use the payment request amount as fallback
     }
 
     const method = paymentDetails?.method || 'unknown';
     const amountPaid = paymentDetails ? Number(paymentDetails.amount) / 100 : 0;
-    const status = paymentDetails?.status || 'captured';
 
-    // 3. Find the associated PaymentRequest
-    const paymentRequest = await prisma.paymentRequest.findUnique({
-      where: { providerPaymentLinkId: razorpay_order_id },
-      include: {
-        order: {
-          include: { 
-            orderItems: {
-              include: { product: true }
-            } 
-          }
-        }
-      }
+    // ── 3. Finalize payment using the single shared function ─────────────────
+    const result = await finalizePayment({
+      providerPaymentLinkId: razorpay_order_id,
+      providerPaymentId: razorpay_payment_id,
+      amountPaid,
+      method,
+      rawPayload: paymentDetails ?? {},
     });
 
-    if (paymentRequest) {
-      const order = paymentRequest.order;
-
-      // Avoid double processing if order is already paid
-      if (order.paymentStatus !== PaymentStatus.PAID) {
-        // Check if transaction already registered
-        const existingTransaction = await prisma.paymentTransaction.findUnique({
-          where: { providerPaymentId: razorpay_payment_id },
-        });
-
-        if (!existingTransaction) {
-          // Execute transaction state machine transitions
-          await prisma.$transaction(async (tx) => {
-            // A. Update Payment Request status
-            await tx.paymentRequest.update({
-              where: { id: paymentRequest.id },
-              data: {
-                status: PaymentRequestStatus.PAID,
-                paidAt: new Date(),
-              },
-            });
-
-            // B. Record Payment Transaction
-            await tx.paymentTransaction.create({
-              data: {
-                orderId: order.id,
-                paymentRequestId: paymentRequest.id,
-                provider: 'RAZORPAY',
-                providerPaymentId: razorpay_payment_id,
-                amount: amountPaid || paymentRequest.amount,
-                currency: 'INR',
-                status,
-                method,
-                rawPayload: paymentDetails || {},
-              },
-            });
-
-            // C. Update Order payment status and lifecycle status to PACKING
-            await tx.order.update({
-              where: { id: order.id },
-              data: {
-                paymentStatus: PaymentStatus.PAID,
-                status: OrderStatus.PACKING,
-              },
-            });
-
-            // D. Close any active Reservations for products in this order and mark unique items SOLD
-            for (const item of order.orderItems) {
-              const activeRes = await tx.reservation.findFirst({
-                where: {
-                  productId: item.productId,
-                  customerId: order.customerId,
-                  status: 'ACTIVE',
-                },
-              });
-
-              if (activeRes) {
-                await tx.reservation.update({
-                  where: { id: activeRes.id },
-                  data: {
-                    status: ReservationStatus.SOLD,
-                    releasedAt: new Date(),
-                    convertedToOrderAt: new Date(),
-                  },
-                });
-              }
-
-              // For unique items, enforce SOLD status
-              if (item.product.isUnique) {
-                await tx.product.update({
-                  where: { id: item.productId },
-                  data: {
-                    inventoryStatus: InventoryStatus.SOLD,
-                    soldAt: new Date(),
-                    quantity: 0,
-                  },
-                });
-              }
-            }
-
-            // E. Log Activity audit record
-            await tx.activityLog.create({
-              data: {
-                entityType: 'ORDER',
-                entityId: order.id,
-                action: 'PAYMENT_RECEIVED',
-                metadata: JSON.stringify({ amount: amountPaid || Number(paymentRequest.amount), method, transactionId: razorpay_payment_id }),
-              },
-            });
+    if (!result.success) {
+      // Payment request not found — still return success to avoid exposing internals
+      console.warn('[verify-payment] finalizePayment failed:', result.error);
+      if (result.error?.includes('not found')) {
+        // Not a client error — return success to Razorpay redirect flow
+        return NextResponse.json({ success: true, message: 'Payment recorded.' });
+      }
+      try {
+        if (body?.razorpay_order_id) {
+          const pr = await prisma.paymentRequest.findUnique({
+            where: { providerPaymentLinkId: body.razorpay_order_id },
           });
-
-          // F. Trigger notifications/automations via broker event
-          try {
-            await emitBusinessEvent('PAYMENT_RECEIVED', {
-              orderId: order.id,
-              orderNumber: order.orderNumber,
-              customerId: order.customerId,
-              amount: amountPaid || Number(paymentRequest.amount),
+          if (pr) {
+            await emitBusinessEvent('PAYMENT_FAILED', {
+              orderId: pr.orderId,
+              errorMsg: result.error,
             });
-          } catch (eventErr) {
-            console.error('Failed to emit PAYMENT_RECEIVED event:', eventErr);
           }
         }
+      } catch (eventErr) {
+        console.error('[verify-payment] Failed to emit PAYMENT_FAILED:', eventErr);
       }
+      return NextResponse.json({ error: result.error }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
       message: 'Payment verified successfully.',
-      orderId: paymentRequest ? paymentRequest.order.id : null,
+      orderId: result.orderId ?? null,
     });
   } catch (error: any) {
-    console.error('Verify payment API error:', error);
+    console.error('[verify-payment] Unhandled error:', error);
     try {
       if (body?.razorpay_order_id) {
         const pr = await prisma.paymentRequest.findUnique({
@@ -218,7 +137,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (eventErr) {
-      console.error('Failed to emit PAYMENT_FAILED on verify error:', eventErr);
+      console.error('[verify-payment] Failed to emit PAYMENT_FAILED on error:', eventErr);
     }
     return NextResponse.json(
       { error: error.message || 'Internal Server Error.' },

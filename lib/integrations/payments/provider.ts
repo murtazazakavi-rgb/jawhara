@@ -1,6 +1,6 @@
 import { RazorpayPaymentClient, PaymentLinkOptions, PaymentLinkResponse } from './razorpay';
 import crypto from 'crypto';
-import { headers } from 'next/headers';
+import { mockPaymentsAreAllowed } from '@/lib/security/payments';
 
 class MockPaymentClient {
   async createPaymentLink(options: PaymentLinkOptions): Promise<PaymentLinkResponse> {
@@ -30,16 +30,22 @@ class MockPaymentClient {
 export async function createPaymentLink(
   options: PaymentLinkOptions
 ): Promise<PaymentLinkResponse> {
-  const provider = process.env.PAYMENT_PROVIDER || 'mock';
+  const provider = process.env.PAYMENT_PROVIDER;
   const hasRazorpayCreds = !!process.env.RAZORPAY_KEY_ID && !!process.env.RAZORPAY_KEY_SECRET;
 
-  const useRazorpay = provider === 'razorpay' && hasRazorpayCreds;
-
-  if (useRazorpay) {
+  if (provider === 'razorpay') {
+    if (!hasRazorpayCreds) {
+      return { success: false, error: 'Razorpay is not fully configured.' };
+    }
     const client = new RazorpayPaymentClient();
     return client.createPaymentLink(options);
-  } else {
+  }
+
+  if (provider === 'mock' && mockPaymentsAreAllowed()) {
     const client = new MockPaymentClient();
     return client.createPaymentLink(options);
   }
+
+  console.error('Payment link creation blocked: no enabled payment provider is configured.');
+  return { success: false, error: 'Online payments are temporarily unavailable.' };
 }

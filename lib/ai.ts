@@ -25,28 +25,8 @@ export async function suggestProductDetails(
 ): Promise<AISuggestions> {
   const apiKey = process.env.GEMINI_API_KEY;
 
-  // Mock Fallback if API key is not configured
   if (!apiKey) {
-    console.log('Gemini API key not configured. Triggering intelligent fallback.');
-    
-    return {
-      categoryName: categoryName || 'Rida',
-      name: 'Mehr-e-Bahar Rida',
-      shortDesc: 'A graceful pastel floral Rida featuring intricate scalloped lace and eyelet embroidery',
-      description: 'Handcrafted with meticulous attention to detail, this piece showcases a harmonious blend of refined fabric and intricate embroidery. Elaborate scalloped laces and eyelet borders cascade gracefully along the hem, lending an air of timeless sophistication and gentle grace.',
-      primaryColour: 'Dusty Rose Pink',
-      secondaryColours: 'Mint Green, Pearl White',
-      suggestedPrice: 4200,
-      attributes: {
-        pardi_style: 'Floral Motif with Scalloped Lace',
-        embroidery_type: 'Threadwork & Chikankari Eyelet',
-        fabric: 'Cotton Silk',
-        top_colour: 'Dusty Rose Pink',
-        bottom_colour: 'Pastel Pink',
-        bed_size: 'Queen',
-        material: '100% Linen',
-      },
-    };
+    throw new Error('AI assistance is not configured. Please complete the product details manually.');
   }
 
   // Initialize new SDK client
@@ -178,19 +158,7 @@ export async function generateSuggestedReplies(
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.log('Gemini API key not configured. Triggering mock replies fallback.');
-    const topProd = customerContext.recommended?.[0];
-    const topRes = customerContext.reservations?.[0];
-    
-    return {
-      option1: `Dear ${customerContext.customerName}, thank you for reaching out! Let me check the availability of that style and get right back to you.`,
-      option2: topProd 
-        ? `Dear ${customerContext.customerName}, since you love ${customerContext.preferredColours || 'elegant design'}, I thought you might appreciate the new ${topProd.name} (Code: ${topProd.productCode}, ₹${Number(topProd.price).toLocaleString('en-IN')}) which just arrived. Shall I set it aside?`
-        : `Dear ${customerContext.customerName}, our new fall collections just arrived! Let me know if you would like me to share the digital lookbook.`,
-      option3: topRes
-        ? `Dear ${customerContext.customerName}, just checking in to see if you have any questions about the ${topRes.product.name} currently on hold for you. Let me know if you would like me to extend the hold time or generate a checkout link!`
-        : `Dear ${customerContext.customerName}, would you like me to create a custom payment link for your latest order to secure the pieces?`,
-    };
+    throw new Error('AI assistance is not configured. Draft the reply manually.');
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -260,4 +228,3 @@ export async function generateSuggestedReplies(
 
   throw lastError || new Error('All configured Gemini models failed for suggestions.');
 }
-

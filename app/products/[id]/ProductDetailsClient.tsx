@@ -319,18 +319,18 @@ export default function ProductDetailsClient({
           </div>
         )}
 
-        {/* AI Insight Box */}
+        {/* Deterministic inventory summary. AI insights must come from real analysis. */}
         <div className="bg-[#E4C8CF]/20 rounded-xl p-6 border border-[#E4C8CF]/50 mb-10">
           <div className="flex items-center gap-3 mb-3">
             <span className="material-symbols-outlined text-primary-container" style={{ fontVariationSettings: "'FILL' 1" }}>
-              auto_awesome
+              inventory_2
             </span>
-            <h3 className="font-headline-sm text-on-primary-container text-base">AI Product Insight</h3>
+            <h3 className="font-headline-sm text-on-primary-container text-base">Inventory Insight</h3>
           </div>
           <p className="font-body-md text-on-surface-variant">
-            {product.isUnique 
-              ? 'One-of-one item. Premium pricing recommended. High probability of sales alignment with VIP pastel collections.'
-              : 'Multi-item batch product. Optimal stock status detected.'}
+            {product.isUnique
+              ? `One-of-one item. Current inventory status: ${product.inventoryStatus}.`
+              : `Batch item with ${product.quantity} unit${product.quantity === 1 ? '' : 's'} recorded. Current inventory status: ${product.inventoryStatus}.`}
           </p>
         </div>
 
