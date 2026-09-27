@@ -71,8 +71,8 @@ export default function ProductInquiryForm({ productId, isLoggedIn }: ProductInq
       {success ? (
         <div className="bg-success/10 border border-success/20 text-success text-xs p-3 rounded-lg mb-4 leading-relaxed">
           <strong>Inquiry Sent!</strong> Your message has been routed to our assistant. You can check for replies on your{' '}
-          <Link href="/dashboard" className="underline font-bold hover:text-success/80">
-            Lookbook Dashboard
+          <Link href="/account#messages" className="underline font-bold hover:text-success/80">
+            Account → Messages
           </Link>.
         </div>
       ) : null}

@@ -8,7 +8,7 @@ export default function BottomNav({ isLoggedIn }: { isLoggedIn?: boolean }) {
   const pathname = usePathname();
 
   // Define routes where bottom navigation should be visible
-  const visibleRoutes = ['/', '/shop', '/dashboard'];
+  const visibleRoutes = ['/', '/shop', '/dashboard', '/account'];
   const isProductRoute = pathname.startsWith('/p/');
   
   const shouldShow = visibleRoutes.includes(pathname) || isProductRoute;
@@ -19,8 +19,8 @@ export default function BottomNav({ isLoggedIn }: { isLoggedIn?: boolean }) {
     if (path === '/') {
       return pathname === '/' || pathname === '/shop' || isProductRoute;
     }
-    if (path === '/login') {
-      return pathname === '/login' || (pathname === '/dashboard' && isLoggedIn);
+    if (path === '/account') {
+      return pathname === '/account' || pathname === '/login';
     }
     return pathname === path;
   };
@@ -45,7 +45,7 @@ export default function BottomNav({ isLoggedIn }: { isLoggedIn?: boolean }) {
         </Link>
 
         <Link 
-          href="/dashboard" 
+          href={isLoggedIn ? '/dashboard' : '/login?redirect=/dashboard'} 
           className={`flex flex-col items-center gap-1 transition-colors cursor-pointer group ${
             isActive('/dashboard') ? 'text-primary' : 'text-on-surface-variant/75'
           }`}
@@ -61,18 +61,18 @@ export default function BottomNav({ isLoggedIn }: { isLoggedIn?: boolean }) {
         </Link>
 
         <Link 
-          href={isLoggedIn ? "/dashboard" : "/login"} 
+          href={isLoggedIn ? '/account' : '/login?redirect=/account'} 
           className={`flex flex-col items-center gap-1 transition-colors cursor-pointer group ${
-            isActive('/login') ? 'text-primary' : 'text-on-surface-variant/75'
+            isActive('/account') ? 'text-primary' : 'text-on-surface-variant/75'
           }`}
         >
           <div className={`px-5 py-1 rounded-full transition-all duration-200 ${
-            isActive('/login') ? 'bg-primary/10 text-primary font-bold' : 'group-hover:bg-on-surface-variant/5'
+            isActive('/account') ? 'bg-primary/10 text-primary font-bold' : 'group-hover:bg-on-surface-variant/5'
           }`}>
             <span className="material-symbols-outlined text-[20px] font-medium block">person</span>
           </div>
           <span className={`text-[9px] font-label-md uppercase tracking-wider font-bold ${
-            isActive('/login') ? 'text-primary' : 'text-on-surface-variant/70'
+            isActive('/account') ? 'text-primary' : 'text-on-surface-variant/70'
           }`}>Account</span>
         </Link>
       </div>

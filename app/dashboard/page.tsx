@@ -2,18 +2,17 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentCustomer } from '@/lib/clientAuth';
-import ShopDashboardClient from './ShopDashboardClient';
-import { isDefaultCustomerPassword } from '@/lib/security/customerPassword';
+import HoldsClient from './HoldsClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CustomerDashboardPage() {
+/** Customer "My Holds": pieces currently held for this customer. */
+export default async function CustomerHoldsPage() {
   const customer = await getCurrentCustomer();
   if (!customer) {
-    redirect('/login');
+    redirect('/login?redirect=/dashboard');
   }
 
-  // 1. Fetch active holds (reservations)
   const rawHolds = await prisma.reservation.findMany({
     where: {
       customerId: customer.id,
@@ -29,7 +28,7 @@ export default async function CustomerDashboardPage() {
         },
       },
     },
-    orderBy: { reservedAt: 'desc' },
+    orderBy: { expiresAt: 'asc' },
   });
 
   const activeHolds = rawHolds.map((h) => ({
@@ -45,69 +44,5 @@ export default async function CustomerDashboardPage() {
     },
   }));
 
-  // 2. Fetch order invoices
-  const rawOrders = await prisma.order.findMany({
-    where: {
-      customerId: customer.id,
-    },
-    include: {
-      payments: {
-        where: {
-          status: 'CREATED',
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const orders = rawOrders.map((o) => {
-    // If order has an unpaid PaymentRequest link, fetch it
-    const activePaymentRequest = o.payments[0];
-    const hasActivePaymentRequest = activePaymentRequest && (!activePaymentRequest.expiresAt || activePaymentRequest.expiresAt > new Date());
-    const paymentUrl = hasActivePaymentRequest && activePaymentRequest.shortUrl
-      ? activePaymentRequest.shortUrl
-      : null;
-
-    return {
-      id: o.id,
-      orderNumber: o.orderNumber,
-      total: Number(o.total),
-      status: o.status,
-      paymentStatus: o.paymentStatus,
-      createdAt: o.createdAt.toISOString(),
-      paymentRequestUrl: paymentUrl,
-    };
-  });
-
-  const chatMessages = customer.email ? await prisma.whatsAppConversation.findUnique({
-    where: { waId: `email:${customer.email.toLowerCase().trim()}` },
-    include: {
-      messages: {
-        orderBy: { createdAt: 'asc' },
-      },
-    },
-  }).then(conv => conv?.messages.map(m => ({
-    id: m.id,
-    direction: m.direction,
-    body: m.body,
-    createdAt: m.createdAt.toISOString(),
-  })) || []) : [];
-
-  const { password: storedPassword } = await prisma.customer.findUniqueOrThrow({
-    where: { id: customer.id },
-    select: { password: true },
-  });
-  const isDefaultPassword = await isDefaultCustomerPassword(storedPassword);
-
-  return (
-    <ShopDashboardClient
-      customerName={customer.name}
-      activeHolds={activeHolds}
-      orders={orders}
-      isDefaultPassword={isDefaultPassword}
-      chatMessages={chatMessages}
-    />
-  );
+  return <HoldsClient customerName={customer.name} activeHolds={activeHolds} />;
 }

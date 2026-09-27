@@ -112,9 +112,9 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
         
         {/* Navigation Bar (Hidden in Print) */}
         <div className="mb-6 flex justify-between items-center print:hidden">
-          <Link href={admin ? "/admin" : "/dashboard"} className="flex items-center gap-1.5 text-primary hover:underline">
+          <Link href={admin ? "/orders" : "/account#orders"} className="flex items-center gap-1.5 text-primary hover:underline">
             <span className="material-symbols-outlined text-sm">arrow_back</span>
-            <span className="text-xs font-label-md uppercase tracking-wider">Back to Dashboard</span>
+            <span className="text-xs font-label-md uppercase tracking-wider">{admin ? 'Back to Orders' : 'Back to My Orders'}</span>
           </Link>
           
           <PrintInvoiceButton />
