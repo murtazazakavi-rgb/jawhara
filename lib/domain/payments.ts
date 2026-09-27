@@ -22,6 +22,7 @@ import {
   PaymentRequestStatus,
   ReservationStatus,
   InventoryStatus,
+  Prisma,
 } from '@prisma/client';
 
 export interface FinalizePaymentParams {
@@ -34,7 +35,7 @@ export interface FinalizePaymentParams {
   /** Payment method (upi, card, netbanking, etc.) */
   method: string;
   /** Raw Razorpay payment payload for audit storage */
-  rawPayload?: Record<string, unknown>;
+  rawPayload?: Prisma.InputJsonValue;
 }
 
 export interface FinalizePaymentResult {

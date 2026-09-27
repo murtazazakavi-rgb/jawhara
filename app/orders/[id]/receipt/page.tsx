@@ -182,7 +182,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
           </div>
 
           {/* Shipment Tracking (If shipped) */}
-          {shipment && shipment.status !== 'PENDING' && (
+          {shipment && shipment.status !== 'CREATED' && (
             <div className="bg-surface-container-low/40 p-4 rounded-xl border border-outline-variant/20 mb-8 print:hidden">
               <h3 className="font-label-md text-xs text-primary font-bold uppercase tracking-wider flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">local_shipping</span>
