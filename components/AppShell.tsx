@@ -164,6 +164,7 @@ export default function AppShell({ children, user }: AppShellProps) {
     { name: 'Customers', href: '/customers', icon: 'group' },
     { name: 'WhatsApp', href: '/whatsapp', icon: 'chat' },
     { name: 'Orders', href: '/orders', icon: 'inventory_2' },
+    { name: 'Assistant', href: '/ai', icon: 'auto_awesome' },
   ];
 
   if (user && user.role !== 'SALES') {
