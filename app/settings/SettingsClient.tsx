@@ -7,12 +7,29 @@ import {
   saveWhatsAppTemplate, 
   createCategoryAction, 
   toggleCategoryActiveAction,
+  deleteCategoryAction,
   createStaffUserAction,
   deleteStaffUserAction,
   createCollectionAction,
   deleteCollectionAction,
   toggleCollectionStatusAction
 } from './actions';
+
+// Mirrors lib/authz.ts and the role checks inside server actions.
+const ROLE_COLUMNS = ['OWNER', 'ADMIN', 'SALES'] as const;
+
+const ROLE_PERMISSIONS: { label: string; roles: readonly (typeof ROLE_COLUMNS)[number][] }[] = [
+  { label: 'Add products, reserve & mark sold', roles: ['OWNER', 'ADMIN', 'SALES'] },
+  { label: 'Manage orders', roles: ['OWNER', 'ADMIN', 'SALES'] },
+  { label: 'Use AI Assistant', roles: ['OWNER', 'ADMIN', 'SALES'] },
+  { label: 'Use WhatsApp Sales Center', roles: ['OWNER', 'ADMIN', 'SALES'] },
+  { label: 'Publish, unpublish & delete products', roles: ['OWNER', 'ADMIN'] },
+  { label: 'Manage campaigns & broadcasts', roles: ['OWNER', 'ADMIN'] },
+  { label: 'Manage settings, categories & collections', roles: ['OWNER', 'ADMIN'] },
+  { label: 'Manage delivery settings', roles: ['OWNER', 'ADMIN'] },
+  { label: 'Add & remove staff accounts', roles: ['OWNER', 'ADMIN'] },
+  { label: 'Delete owner accounts', roles: ['OWNER'] },
+];
 
 interface Template {
   id?: string;
@@ -159,6 +176,20 @@ export default function SettingsClient({
       } else {
         alert('Staff member deleted.');
         router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+    if (!confirm(`Permanently delete the "${name}" category? This cannot be undone.`)) return;
+    try {
+      const res = await deleteCategoryAction(id);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        setCategories(prev => prev.filter(c => c.id !== id));
       }
     } catch (err) {
       console.error(err);
@@ -773,7 +804,7 @@ export default function SettingsClient({
                 Boutique Categories
               </h2>
               <p className="text-on-surface-variant/80 text-xs mt-2">
-                Manage your product category settings. Deactivating a category hides it from the product adding wizard.
+                Manage your product category settings. Deactivating a category hides it from the product adding wizard. An inactive category can be deleted once no products use it.
               </p>
             </div>
 
@@ -822,6 +853,16 @@ export default function SettingsClient({
                       >
                         {cat.isActive ? 'Deactivate' : 'Activate'}
                       </button>
+                      {!cat.isActive && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                          className="w-7 h-7 flex items-center justify-center rounded border border-error/40 text-error hover:bg-error hover:text-white transition-colors cursor-pointer"
+                          title="Delete category"
+                          aria-label={`Delete ${cat.name} category`}
+                        >
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1014,6 +1055,44 @@ export default function SettingsClient({
         {/* TAB 5: STAFF ADMINS */}
         {activeTab === 'staff' && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
           <section className="space-y-8 animate-fade-in">
+            {/* Role permissions reference */}
+            <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 md:p-8 shadow-sm">
+              <h3 className="font-display font-medium text-headline-sm text-primary mb-1">Role Permissions</h3>
+              <p className="text-xs text-on-surface-variant mb-5">What each staff role can do in Jawhara OS.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-outline-variant/30">
+                      <th className="font-label-md text-xs text-outline uppercase py-2.5 pr-4">Capability</th>
+                      {ROLE_COLUMNS.map((role) => (
+                        <th key={role} className="font-label-md text-xs text-outline uppercase py-2.5 px-3 text-center">{role}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROLE_PERMISSIONS.map((row) => (
+                      <tr key={row.label} className="border-b border-outline-variant/10">
+                        <td className="font-body-md text-sm py-2.5 pr-4 text-on-surface">{row.label}</td>
+                        {ROLE_COLUMNS.map((role) => {
+                          const allowed = row.roles.includes(role);
+                          return (
+                            <td key={role} className="py-2.5 px-3 text-center">
+                              <span
+                                className={`material-symbols-outlined text-[18px] ${allowed ? 'text-success' : 'text-outline/50'}`}
+                                aria-label={allowed ? 'Allowed' : 'Not allowed'}
+                              >
+                                {allowed ? 'check_circle' : 'remove'}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 md:p-8 shadow-sm">
               <h3 className="font-display font-medium text-headline-sm text-primary mb-6">Staff Accounts Management</h3>
               
