@@ -5,7 +5,8 @@ import { setSession } from '@/lib/auth';
 import * as bcrypt from 'bcryptjs';
 
 export async function login(prevState: any, formData: FormData) {
-  const username = formData.get('username') as string;
+  // Phones often auto-capitalise the first letter, so match case-insensitively
+  const username = ((formData.get('username') as string) || '').trim();
   const password = formData.get('password') as string;
 
   if (!username || !password) {
@@ -16,8 +17,8 @@ export async function login(prevState: any, formData: FormData) {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: username },
-          { name: username }
+          { email: { equals: username, mode: 'insensitive' } },
+          { name: { equals: username, mode: 'insensitive' } }
         ]
       }
     });

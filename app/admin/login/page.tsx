@@ -75,6 +75,10 @@ export default function LoginPage() {
                   placeholder="Enter your credentials"
                   required
                   type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                 />
               </div>
             </div>
@@ -85,13 +89,6 @@ export default function LoginPage() {
                 <label className="font-label-md text-on-surface uppercase" htmlFor="password">
                   Password
                 </label>
-                <a
-                  className="font-label-sm text-primary hover:text-primary-container transition-colors"
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  Forgot password?
-                </a>
               </div>
               <div className="relative w-full">
                 <span className="material-symbols-outlined absolute left-0 bottom-3 text-outline text-[20px]">
@@ -104,11 +101,13 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                 />
                 <button
                   className="absolute right-2 bottom-2.5 text-outline hover:text-on-surface transition-colors focus:outline-none"
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   <span className="material-symbols-outlined text-[20px]">
                     {showPassword ? 'visibility' : 'visibility_off'}

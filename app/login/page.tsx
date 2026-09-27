@@ -108,7 +108,7 @@ function LoginPageContent() {
           </h1>
           <p className="font-body-sm text-xs text-on-surface-variant/80 mt-1">
             {view === 'login' 
-              ? 'Log in using your registered email and password.' 
+              ? 'Sign in with your email or mobile number and password.' 
               : 'Complete your registration. Phone and name details are mandatory.'}
           </p>
         </div>
@@ -122,16 +122,22 @@ function LoginPageContent() {
         {view === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="flex flex-col gap-2">
-              <label className="font-label-md text-xs text-on-surface-variant uppercase">
-                Email Address
+              <label htmlFor="login-identifier" className="font-label-md text-xs text-on-surface-variant uppercase">
+                Email or mobile number
               </label>
               <input
-                type="email"
+                id="login-identifier"
+                type="text"
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
-                placeholder="jane@example.com"
+                placeholder="jane@example.com or 98765 43210"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors"
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-base transition-colors"
               />
             </div>
 
@@ -144,11 +150,12 @@ function LoginPageContent() {
               </label>
               <input
                 type="password"
+                autoComplete="current-password"
                 required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-body-md transition-colors"
+                className="bg-transparent border-b border-outline-variant/50 focus:border-primary py-2 outline-none font-body-md text-base transition-colors"
               />
             </div>
 
@@ -167,6 +174,8 @@ function LoginPageContent() {
               <label className="font-label-md text-xs text-on-surface-variant uppercase">Email Address *</label>
               <input
                 type="email"
+                autoComplete="email"
+                autoCapitalize="none"
                 required
                 placeholder="jane@example.com"
                 value={email}

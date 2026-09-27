@@ -197,30 +197,37 @@ function toPublicCustomer(customer: {
 }
 
 /**
- * Authenticates a client using email and password.
+ * Authenticates a client using their email or mobile number and password.
+ * Customers created from WhatsApp only know their phone number, so both work.
  */
 export async function clientLoginAction(data: {
   email: string;
   password: string;
 }) {
-  if (!data.email.trim() || !data.password.trim()) {
-    return { error: 'Email and password are required.' };
+  const identifier = data.email.trim();
+  if (!identifier || !data.password.trim()) {
+    return { error: 'Email or mobile number, and password, are required.' };
   }
 
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { email: data.email.toLowerCase().trim() },
-      omit: { password: false },
-    });
+    const customer = identifier.includes('@')
+      ? await prisma.customer.findUnique({
+          where: { email: identifier.toLowerCase() },
+          omit: { password: false },
+        })
+      : await prisma.customer.findUnique({
+          where: { normalizedMobile: normalizePhoneNumber(identifier) },
+          omit: { password: false },
+        });
 
     if (!customer || customer.isArchived) {
-      return { error: 'Invalid email or password.' };
+      return { error: 'Invalid email/mobile number or password.' };
     }
 
     const attempt = data.password.trim();
     const { valid, needsRehash } = await verifyCustomerPassword(attempt, customer.password);
     if (!valid) {
-      return { error: 'Invalid email or password.' };
+      return { error: 'Invalid email/mobile number or password.' };
     }
 
     // Upgrade legacy plaintext passwords to a hash on successful login
