@@ -186,6 +186,8 @@ export async function POST(request: Request) {
         await prisma.whatsAppConversation.update({
           where: { id: conversation.id },
           data: {
+            // A new inbound message brings an archived chat back into the inbox
+            ...(conversation.status === 'ARCHIVED' ? { status: 'OPEN' } : {}),
             unreadCount: { increment: 1 },
             lastMessageAt: new Date(),
             lastInboundAt: new Date(),

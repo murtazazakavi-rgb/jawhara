@@ -131,6 +131,56 @@ export async function toggleCategoryActiveAction(id: string, isActive: boolean) 
 }
 
 /**
+ * Permanently deletes a category. Blocked while any product still uses it,
+ * since product codes and printed tags depend on the category code.
+ */
+export async function deleteCategoryAction(id: string) {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    const productCount = await prisma.product.count({ where: { categoryId: id } });
+    if (productCount > 0) {
+      return {
+        error: `Cannot delete — ${productCount} product${productCount === 1 ? ' is' : 's are'} in this category (including archived). Move or delete them first.`,
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Attribute definitions (and their values) belong to the category
+      const definitions = await tx.attributeDefinition.findMany({
+        where: { categoryId: id },
+        select: { id: true },
+      });
+      const definitionIds = definitions.map((d) => d.id);
+      if (definitionIds.length > 0) {
+        await tx.productAttributeValue.deleteMany({ where: { definitionId: { in: definitionIds } } });
+        await tx.attributeDefinition.deleteMany({ where: { id: { in: definitionIds } } });
+      }
+      await tx.productCategory.delete({ where: { id } });
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'CATEGORY',
+        entityId: id,
+        action: 'DELETED',
+        userId: user.id,
+      },
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/products');
+    revalidatePath('/products/add');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to delete category.' };
+  }
+}
+
+/**
  * Creates a new administrative staff member (User model).
  */
 export async function createStaffUserAction(data: {

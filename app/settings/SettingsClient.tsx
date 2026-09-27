@@ -57,7 +57,11 @@ interface SettingsClientProps {
   initialSettings: Setting[];
   healthStatus: {
     whatsapp: { status: string; details: string; lastInbound: string; lastOutbound: string };
-    razorpay: { status: string; details: string };
+    razorpay: {
+      status: string;
+      details: string;
+      checks: { name: string; ok: boolean; required: boolean; hint: string }[];
+    };
     gemini: { status: string; details: string };
     storage: { status: string; details: string };
   };
@@ -596,14 +600,33 @@ export default function SettingsClient({
                     <span className="font-label-md text-sm font-semibold">Razorpay Integration</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    healthStatus.razorpay.status.includes('Connected') 
-                      ? 'bg-success/15 text-success' 
-                      : 'bg-error/15 text-error'
+                    !healthStatus.razorpay.status.includes('Connected')
+                      ? 'bg-error/15 text-error'
+                      : healthStatus.razorpay.status.includes('Warnings')
+                      ? 'bg-warning/15 text-warning'
+                      : 'bg-success/15 text-success'
                   }`}>
                     {healthStatus.razorpay.status}
                   </span>
                 </div>
                 <p className="text-xs text-on-surface-variant">{healthStatus.razorpay.details}</p>
+                <ul className="flex flex-col gap-1 mt-1">
+                  {healthStatus.razorpay.checks.map((check) => (
+                    <li key={check.name} className="flex items-center gap-2 text-[11px]">
+                      <span
+                        className={`material-symbols-outlined text-[14px] ${
+                          check.ok ? 'text-success' : check.required ? 'text-error' : 'text-warning'
+                        }`}
+                      >
+                        {check.ok ? 'check_circle' : check.required ? 'cancel' : 'warning'}
+                      </span>
+                      <code className="font-mono text-on-surface">{check.name}</code>
+                      <span className="text-outline truncate">
+                        {check.ok ? 'set' : check.required ? 'missing' : 'missing (optional)'} · {check.hint}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               {/* Gemini Connection */}

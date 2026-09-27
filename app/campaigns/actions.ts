@@ -19,6 +19,11 @@ async function fetchSegmentCustomers(rules: SegmentRules) {
     include: {
       orders: {
         where: { paymentStatus: 'PAID' },
+        include: {
+          orderItems: {
+            include: { product: { select: { primaryColour: true } } },
+          },
+        },
       },
       reservations: {
         include: { product: true },
@@ -41,9 +46,12 @@ async function fetchSegmentCustomers(rules: SegmentRules) {
     // 2. Calculate Color Affinity
     if (rules.preferredColour) {
       const colorCounts: Record<string, number> = {};
+      // Purchases (paid orders) are the strongest signal, then holds.
       customer.orders.forEach(o => {
-        // Orders are paid since filtered above
-        // Fetch order items manually or via include if available
+        o.orderItems.forEach(item => {
+          const col = item.product?.primaryColour;
+          if (col) colorCounts[col] = (colorCounts[col] || 0) + 2 * item.quantity;
+        });
       });
       customer.reservations.forEach(r => {
         const col = r.product?.primaryColour;

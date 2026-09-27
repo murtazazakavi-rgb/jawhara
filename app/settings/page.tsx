@@ -67,14 +67,32 @@ export default async function SettingsPage() {
     lastOutbound: lastOutboundStr,
   };
 
-  const isRazorpayLive = process.env.PAYMENT_PROVIDER === 'razorpay';
-  const hasRazorpayCreds = !!process.env.RAZORPAY_KEY_ID && !!process.env.RAZORPAY_KEY_SECRET;
+  // Check each variable individually so the settings page can say exactly
+  // what is missing on this deployment (e.g. vars not added in Vercel).
+  const razorpayChecks = [
+    { name: 'PAYMENT_PROVIDER', ok: process.env.PAYMENT_PROVIDER === 'razorpay', required: true, hint: 'must be "razorpay"' },
+    { name: 'RAZORPAY_KEY_ID', ok: !!process.env.RAZORPAY_KEY_ID, required: true, hint: 'server-side payment links & orders' },
+    { name: 'RAZORPAY_KEY_SECRET', ok: !!process.env.RAZORPAY_KEY_SECRET, required: true, hint: 'server-side payment links & orders' },
+    { name: 'NEXT_PUBLIC_RAZORPAY_KEY_ID', ok: !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, required: true, hint: 'checkout popup; needs a rebuild after setting' },
+    { name: 'RAZORPAY_WEBHOOK_SECRET', ok: !!process.env.RAZORPAY_WEBHOOK_SECRET, required: false, hint: 'webhook payment confirmations' },
+  ];
+  const missingRequired = razorpayChecks.filter((c) => c.required && !c.ok);
+  const missingOptional = razorpayChecks.filter((c) => !c.required && !c.ok);
+  const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
+  const razorpayMode = razorpayKeyId.startsWith('rzp_live_') ? 'Live' : razorpayKeyId.startsWith('rzp_test_') ? 'Test' : 'Unknown';
 
   const razorpayHealth = {
-    status: isRazorpayLive && hasRazorpayCreds ? 'Connected (Live)' : 'Connected (Mock Mode)',
-    details: isRazorpayLive && hasRazorpayCreds
-      ? `Live API Key configured: ${process.env.RAZORPAY_KEY_ID?.substring(0, 8) || ''}...`
-      : 'Mock transactions link generator enabled. Payment confirmations simulated via sandbox webhooks.',
+    status:
+      missingRequired.length === 0
+        ? missingOptional.length === 0
+          ? `Connected (${razorpayMode})`
+          : `Connected (${razorpayMode}) – Warnings`
+        : 'Not Configured (Mock Mode)',
+    details:
+      missingRequired.length === 0
+        ? `API key configured: ${razorpayKeyId.substring(0, 8)}...`
+        : 'Online payments fall back to mock/disabled until the variables below are set in this deployment\'s environment (e.g. Vercel → Settings → Environment Variables), then redeployed.',
+    checks: razorpayChecks.map(({ name, ok, required, hint }) => ({ name, ok, required, hint })),
   };
 
   const geminiHealth = {

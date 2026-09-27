@@ -6,6 +6,7 @@ import AppShell from '@/components/AppShell';
 import { prisma } from '@/lib/prisma';
 import ReservedProductsList from './ReservedProductsList';
 import ProductsListClient from './ProductsListClient';
+import AutoSubmitSelect from './AutoSubmitSelect';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,7 +132,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <section className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 mb-8 flex flex-col gap-6">
         <form method="GET" action="/products" className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Text Search */}
-          <div className="md:col-span-4 relative flex items-center border-b border-outline-variant/50 focus-within:border-primary transition-colors">
+          <div className="md:col-span-6 relative flex items-center border-b border-outline-variant/50 focus-within:border-primary transition-colors">
             <span className="material-symbols-outlined text-outline absolute left-0 text-[20px]">search</span>
             <input
               type="text"
@@ -144,7 +145,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
           {/* Category Filter */}
           <div className="md:col-span-3 border-b border-outline-variant/50 focus-within:border-primary transition-colors">
-            <select
+            <AutoSubmitSelect
               name="category"
               defaultValue={categoryId}
               className="w-full py-2 bg-transparent border-0 focus:ring-0 font-body-md"
@@ -155,12 +156,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   {c.name}
                 </option>
               ))}
-            </select>
+            </AutoSubmitSelect>
           </div>
 
           {/* Sort Filter */}
           <div className="md:col-span-3 border-b border-outline-variant/50 focus-within:border-primary transition-colors">
-            <select
+            <AutoSubmitSelect
               name="sort"
               defaultValue={sort}
               className="w-full py-2 bg-transparent border-0 focus:ring-0 font-body-md"
@@ -169,22 +170,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               <option value="oldest">Sort: Oldest</option>
               <option value="price-asc">Sort: Price Low to High</option>
               <option value="price-desc">Sort: Price High to Low</option>
-            </select>
+            </AutoSubmitSelect>
           </div>
 
-          {/* Submit Button */}
-          <div className="md:col-span-2 flex items-end">
-            <button
-              type="submit"
-              className="w-full bg-primary-container text-on-primary-container hover:opacity-90 font-label-md py-2.5 rounded uppercase tracking-wider text-xs cursor-pointer"
-            >
-              Apply Filter
-            </button>
-          </div>
-
-          {/* Preserving other params */}
-          <input type="hidden" name="status" value={status} />
-          <input type="hidden" name="publish" value={publish} />
+          {/* Preserving other params (only when non-default, to keep URLs clean) */}
+          {status !== 'ALL' && <input type="hidden" name="status" value={status} />}
+          {publish !== 'ALL' && <input type="hidden" name="publish" value={publish} />}
         </form>
 
         {/* Tab Selection */}
@@ -235,7 +226,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       ) : status === 'RESERVED' ? (
         <ReservedProductsList products={products as any} />
       ) : (
-        <ProductsListClient products={products as any} />
+        <ProductsListClient
+          products={products as any}
+          canDelete={user.role === 'OWNER' || user.role === 'ADMIN'}
+        />
       )}
     </AppShell>
   );

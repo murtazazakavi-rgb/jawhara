@@ -172,6 +172,18 @@ export default function AppShell({ children, user }: AppShellProps) {
     navLinks.push({ name: 'Automations', href: '/automations', icon: 'settings_suggest' });
   }
 
+  // Detail pages (e.g. /products/abc-123) get a mobile back chevron.
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const showBack = pathSegments.length > 1;
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(`/${pathSegments.slice(0, -1).join('/')}`);
+    }
+  };
+
   return (
     <div className="bg-surface text-on-surface font-body-md min-h-screen pb-24 md:pb-0 relative flex flex-col">
       {/* Decorative Background Rose Watermark */}
@@ -181,14 +193,26 @@ export default function AppShell({ children, user }: AppShellProps) {
       <header className="bg-surface border-b border-outline-variant/30 w-full py-4 z-40 sticky top-0">
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex justify-between items-center">
           
-          {/* Logo Section */}
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary text-[28px]">
-              save_as
-            </span>
-            <span className="font-display font-semibold text-headline-sm md:text-headline-md text-on-surface tracking-tight">
-              Jawhara OS
-            </span>
+          {/* Logo Section (mobile back chevron on detail pages + home link) */}
+          <div className="flex items-center gap-2">
+            {showBack && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="md:hidden -ml-2 w-9 h-9 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
+                aria-label="Go back"
+              >
+                <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+              </button>
+            )}
+            <Link href="/admin" className="flex items-center gap-3" aria-label="Jawhara OS home">
+              <span className="material-symbols-outlined text-primary text-[28px]">
+                save_as
+              </span>
+              <span className="font-display font-semibold text-headline-sm md:text-headline-md text-on-surface tracking-tight">
+                Jawhara OS
+              </span>
+            </Link>
           </div>
 
           {/* Desktop Navigation Links */}

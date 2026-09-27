@@ -3,8 +3,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import BulkPriceTagModal from '@/components/BulkPriceTagModal';
 import { PriceTagProduct } from '@/components/PriceTag';
+import { useToast } from '@/components/Toast';
+import { deleteProductAction } from './[id]/actions';
 
 interface ProductItem {
   id: string;
@@ -24,9 +27,16 @@ interface ProductItem {
 
 interface ProductsListClientProps {
   products: ProductItem[];
+  canDelete: boolean;
 }
 
-export default function ProductsListClient({ products }: ProductsListClientProps) {
+const iconButtonClass =
+  'w-8 h-8 bg-surface-container-low text-on-surface-variant rounded-lg transition-all flex items-center justify-center cursor-pointer border border-outline-variant/25 disabled:opacity-50 disabled:cursor-not-allowed';
+
+export default function ProductsListClient({ products, canDelete }: ProductsListClientProps) {
+  const router = useRouter();
+  const toast = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -55,6 +65,42 @@ export default function ProductsListClient({ products }: ProductsListClientProps
 
   const clearSelection = () => {
     setSelectedIds(new Set());
+  };
+
+  const openPrint = (product: PriceTagProduct) => {
+    setSinglePrintProduct(product);
+    setIsBulkModalOpen(true);
+  };
+
+  const handleDelete = async (product: ProductItem) => {
+    if (!confirm(`Delete "${product.name}" (${product.productCode})?\n\nIt will be archived (unpublished) if it has order history, or deleted permanently if not.`)) {
+      return;
+    }
+
+    setDeletingId(product.id);
+    try {
+      const res = await deleteProductAction(product.id);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(
+        res.archived
+          ? `${product.productCode} has order history, so it was archived instead of deleted.`
+          : `${product.productCode} deleted permanently.`
+      );
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(product.id);
+        return next;
+      });
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete product.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const selectedProducts: PriceTagProduct[] = singlePrintProduct
@@ -93,20 +139,6 @@ export default function ProductsListClient({ products }: ProductsListClientProps
         </div>
 
         <div className="flex items-center gap-2">
-          {selectedIds.size > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setSinglePrintProduct(null);
-                setIsBulkModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 bg-primary text-white rounded-lg text-xs font-label-md uppercase tracking-wider font-bold shadow-xs hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer animate-fade-in"
-            >
-              <span className="material-symbols-outlined text-[15px]">print</span>
-              <span>Print Tags ({selectedIds.size})</span>
-            </button>
-          )}
-
           {/* View Mode Toggle */}
           <div className="flex items-center bg-surface-container-low p-0.5 rounded-lg border border-outline-variant/20">
             <button
@@ -281,25 +313,35 @@ export default function ProductsListClient({ products }: ProductsListClientProps
                   <div className="col-span-2 flex items-center justify-start md:justify-end gap-1.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSinglePrintProduct(product);
-                        setIsBulkModalOpen(true);
-                      }}
-                      className="px-2.5 py-1.5 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface-variant text-[10px] font-label-md uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 cursor-pointer border border-outline-variant/25"
-                      title="Print 1.5in x 2.5in Price Tag"
+                      onClick={() => openPrint(product)}
+                      className={`${iconButtonClass} hover:bg-primary hover:text-white`}
+                      title="Print price tag"
+                      aria-label={`Print price tag for ${product.name}`}
                     >
-                      <span className="material-symbols-outlined text-[13px]">label</span>
-                      <span className="hidden xl:inline">Print Tag</span>
+                      <span className="material-symbols-outlined text-[16px]">label</span>
                     </button>
-
                     <Link
                       href={`/products/${product.id}`}
-                      className="px-2.5 py-1.5 bg-surface-container-low hover:bg-surface-container-high text-on-surface text-[10px] font-label-md uppercase tracking-wider rounded-lg transition-colors flex items-center gap-1 border border-outline-variant/25"
-                      title="View Details"
+                      className={`${iconButtonClass} hover:bg-surface-container-high hover:text-on-surface`}
+                      title="Open & manage"
+                      aria-label={`Open ${product.name}`}
                     >
-                      <span className="material-symbols-outlined text-[13px]">visibility</span>
-                      <span className="hidden xl:inline">View</span>
+                      <span className="material-symbols-outlined text-[16px]">edit</span>
                     </Link>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(product)}
+                        disabled={deletingId === product.id}
+                        className={`${iconButtonClass} hover:bg-error hover:text-white`}
+                        title="Delete product"
+                        aria-label={`Delete ${product.name}`}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {deletingId === product.id ? 'progress_activity' : 'delete'}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -389,19 +431,39 @@ export default function ProductsListClient({ products }: ProductsListClientProps
                   </div>
                 </Link>
 
-                {/* Card Footer Quick Print Button */}
+                {/* Card Footer Quick Actions */}
                 <div className="px-3 pb-2.5 pt-0 flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSinglePrintProduct(product);
-                      setIsBulkModalOpen(true);
-                    }}
-                    className="w-full py-1.5 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface-variant text-[9px] font-label-md uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer border border-outline-variant/20"
+                    onClick={() => openPrint(product)}
+                    className="flex-1 h-8 bg-surface-container-low hover:bg-primary hover:text-white text-on-surface-variant text-[9px] font-label-md uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer border border-outline-variant/20"
+                    title="Print price tag"
                   >
-                    <span className="material-symbols-outlined text-[12px]">label</span>
-                    <span>Print Tag</span>
+                    <span className="material-symbols-outlined text-[14px]">label</span>
+                    <span>Tag</span>
                   </button>
+                  <Link
+                    href={`/products/${product.id}`}
+                    className={`${iconButtonClass} hover:bg-surface-container-high hover:text-on-surface`}
+                    title="Open & manage"
+                    aria-label={`Open ${product.name}`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">edit</span>
+                  </Link>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(product)}
+                      disabled={deletingId === product.id}
+                      className={`${iconButtonClass} hover:bg-error hover:text-white`}
+                      title="Delete product"
+                      aria-label={`Delete ${product.name}`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        {deletingId === product.id ? 'progress_activity' : 'delete'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

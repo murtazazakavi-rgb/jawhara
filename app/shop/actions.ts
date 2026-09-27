@@ -433,6 +433,7 @@ export async function clientSendMessageAction(data: {
     await prisma.whatsAppConversation.update({
       where: { id: conversation.id },
       data: {
+        ...(conversation.status === 'ARCHIVED' ? { status: 'OPEN' } : {}),
         lastMessageAt: new Date(),
         unreadCount: { increment: 1 },
       },

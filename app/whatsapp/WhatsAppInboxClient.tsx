@@ -7,7 +7,8 @@ import {
   getCustomerContext, 
   assignSalesperson,
   getAISuggestedReplies,
-  getConversations
+  getConversations,
+  archiveConversationAction
 } from './actions';
 import { createPaymentRequestAction } from '../products/[id]/actions';
 import Link from 'next/link';
@@ -68,6 +69,7 @@ export default function WhatsAppInboxClient({
   const [sendingMsg, setSendingMsg] = useState(false);
   const [aiReplies, setAiReplies] = useState<{ option1: string; option2: string; option3: string } | null>(null);
   const [loadingAiReplies, setLoadingAiReplies] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeConv = conversations.find(c => c.id === activeConvId);
@@ -277,6 +279,29 @@ export default function WhatsAppInboxClient({
     }
   };
 
+  // Archive hides the chat from the inbox; history is kept and the chat
+  // reappears automatically when the customer messages again.
+  const handleArchive = async () => {
+    if (!activeConv) return;
+    if (!confirm(`Archive the conversation with ${activeConv.customer.name}? It will reappear if they message again.`)) return;
+
+    setArchiving(true);
+    try {
+      const res = await archiveConversationAction(activeConv.id);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        setConversations(prev => prev.filter(c => c.id !== activeConv.id));
+        setActiveConvId(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to archive conversation.');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   // Helper to construct a WhatsApp share link context directly
   const handleSendProductRecommend = async (prodCode: string, name: string, price: number) => {
     const introText = `Hi, checking in if you liked the newly available ${name} (Code: ${prodCode}, price ₹${price.toLocaleString('en-IN')}). Let me know if I can hold this piece for you!`;
@@ -294,7 +319,7 @@ export default function WhatsAppInboxClient({
     <div className="grid grid-cols-1 lg:grid-cols-12 border border-outline-variant/30 rounded-lg overflow-hidden min-h-[75vh] bg-surface-container-lowest shadow-sm">
       
       {/* COLUMN 1: Conversations Sidebar List */}
-      <div className="lg:col-span-3 border-r border-outline-variant/30 flex flex-col bg-surface-container-lowest">
+      <div className={`lg:col-span-3 border-r border-outline-variant/30 flex-col bg-surface-container-lowest ${activeConvId ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-4 border-b border-outline-variant/20">
           <h2 className="font-display font-medium text-headline-sm text-primary mb-3">WhatsApp Sales</h2>
           <div className="relative">
@@ -349,16 +374,36 @@ export default function WhatsAppInboxClient({
       </div>
 
       {/* COLUMN 2: Message Thread & Composer */}
-      <div className="lg:col-span-6 flex flex-col bg-surface">
+      <div className={`lg:col-span-6 flex-col bg-surface ${activeConvId ? 'flex' : 'hidden lg:flex'}`}>
         {activeConvId ? (
           <>
             {/* Header info */}
-            <div className="px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-lowest">
-              <div>
-                <h3 className="font-display font-medium text-headline-sm text-on-surface">{activeConv?.customer.name}</h3>
-                <p className="text-[10px] text-outline">{activeConv?.waId}</p>
+            <div className="px-4 lg:px-6 py-4 border-b border-outline-variant/30 flex flex-wrap justify-between items-center gap-3 bg-surface-container-lowest">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveConvId(null)}
+                  className="lg:hidden -ml-1 w-8 h-8 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container-low cursor-pointer"
+                  aria-label="Back to conversations"
+                >
+                  <span className="material-symbols-outlined text-[22px]">arrow_back</span>
+                </button>
+                <div className="min-w-0">
+                  <h3 className="font-display font-medium text-headline-sm text-on-surface truncate">{activeConv?.customer.name}</h3>
+                  <p className="text-[10px] text-outline">{activeConv?.waId}</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleArchive}
+                  disabled={archiving}
+                  className="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/50 text-on-surface-variant hover:text-primary hover:border-primary transition-colors cursor-pointer disabled:opacity-50"
+                  title="Archive conversation"
+                  aria-label="Archive conversation"
+                >
+                  <span className="material-symbols-outlined text-[18px]">{archiving ? 'sync' : 'archive'}</span>
+                </button>
                 <span className="font-label-sm text-[11px] text-outline">Assignee:</span>
                 <select
                   value={activeConv?.assignedUserId || ''}
@@ -519,7 +564,7 @@ export default function WhatsAppInboxClient({
       </div>
 
       {/* COLUMN 3: Customer Context CRM Intelligence */}
-      <div className="lg:col-span-3 border-l border-outline-variant/30 flex flex-col bg-surface-container-lowest max-h-[75vh] overflow-y-auto">
+      <div className={`lg:col-span-3 border-t lg:border-t-0 lg:border-l border-outline-variant/30 flex-col bg-surface-container-lowest max-h-[75vh] overflow-y-auto ${activeConvId ? 'flex' : 'hidden lg:flex'}`}>
         <div className="p-4 border-b border-outline-variant/20 bg-surface-container-low/30">
           <h3 className="font-display font-medium text-label-md text-primary uppercase tracking-wider">Customer Intelligence</h3>
         </div>

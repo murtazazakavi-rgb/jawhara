@@ -15,6 +15,9 @@ export async function getConversations() {
   if (!user) throw new Error('Unauthorized.');
 
   return prisma.whatsAppConversation.findMany({
+    where: {
+      status: { not: 'ARCHIVED' },
+    },
     include: {
       customer: true,
     },
@@ -117,10 +120,11 @@ export async function sendWhatsAppChatMessage(conversationId: string, text: stri
       },
     });
 
-    // Update conversation last message timestamp
+    // Update conversation last message timestamp (and unarchive on new activity)
     await prisma.whatsAppConversation.update({
       where: { id: conversationId },
       data: {
+        ...(conversation.status === 'ARCHIVED' ? { status: 'OPEN' } : {}),
         lastMessageAt: new Date(),
       },
     });
@@ -276,6 +280,36 @@ export async function assignSalesperson(conversationId: string, userId: string |
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to assign salesperson.' };
+  }
+}
+
+/**
+ * Archives a conversation: hides it from the inbox without deleting message
+ * history. It reopens automatically when the customer messages again.
+ */
+export async function archiveConversationAction(conversationId: string) {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Unauthorized.' };
+
+  try {
+    await prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: { status: 'ARCHIVED', unreadCount: 0 },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'CONVERSATION',
+        entityId: conversationId,
+        action: 'ARCHIVED',
+        userId: user.id,
+      },
+    });
+
+    revalidatePath('/whatsapp');
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to archive conversation.' };
   }
 }
 
