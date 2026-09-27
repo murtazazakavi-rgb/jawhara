@@ -29,6 +29,8 @@ export function proxy(request: NextRequest) {
     path === '/login' ||
     path.startsWith('/admin/login') ||
     path.startsWith('/dashboard') ||
+    path === '/account' || // customer pages check the customer session themselves
+    path === '/shop/api/logout' ||
     (path.startsWith('/orders/') && path.endsWith('/receipt')) ||
     path.startsWith('/p/') ||
     path.startsWith('/api/public/') ||
