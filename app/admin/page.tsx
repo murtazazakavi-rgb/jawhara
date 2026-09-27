@@ -25,6 +25,7 @@ export default async function DashboardPage() {
       createdAt: {
         gte: today,
       },
+      paymentStatus: 'PAID',
     },
   });
   const todaySales = todaySalesResult._sum.total || 0;
@@ -41,12 +42,18 @@ export default async function DashboardPage() {
     where: { status: 'PENDING' },
   });
 
-  const packingCount = await prisma.order.count({
-    where: { status: 'PACKING' },
+  // Paid orders not yet packed
+  const toPackCount = await prisma.order.count({
+    where: { status: 'PENDING', paymentStatus: 'PAID' },
+  });
+
+  // Packed orders waiting to go out
+  const toDispatchCount = await prisma.order.count({
+    where: { status: { in: ['PACKING', 'READY_FOR_PICKUP'] } },
   });
 
   const unpaidCount = await prisma.order.count({
-    where: { status: 'PENDING', paymentStatus: 'UNPAID' },
+    where: { paymentStatus: 'UNPAID', status: { not: 'RETURNED' } },
   });
 
   const returnedCount = await prisma.order.count({
@@ -55,14 +62,15 @@ export default async function DashboardPage() {
 
   // 2. Fetch Attention Items
   // Active reservations
+  // Holds that expire soonest need attention first
   const activeReservations = await prisma.reservation.findMany({
-    where: { status: 'ACTIVE' },
+    where: { status: 'ACTIVE', expiresAt: { gt: new Date() } },
     include: {
       product: true,
       customer: true,
     },
     take: 3,
-    orderBy: { reservedAt: 'desc' },
+    orderBy: { expiresAt: 'asc' },
   });
 
   // Pending unpaid orders
@@ -106,14 +114,14 @@ export default async function DashboardPage() {
           local_florist
         </span>
         <h1 className="font-display-lg text-on-surface mb-2">Boutique Overview</h1>
-        <p className="font-body-lg text-on-surface-variant">Here is an summary of your boutique operational metrics for today.</p>
+        <p className="font-body-lg text-on-surface-variant">Here is a summary of your boutique operational metrics for today.</p>
       </div>
 
       {/* Metrics Bento Grid */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
         {/* Metric 1 */}
         <div className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 relative overflow-hidden group hover:shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all">
-          <p className="font-label-sm text-on-surface-variant uppercase tracking-wider mb-2">Today's Sales</p>
+          <p className="font-label-sm text-on-surface-variant uppercase tracking-wider mb-2">Today's Sales (Paid)</p>
           <p className="font-display-lg text-primary text-3xl md:text-4xl">₹{todaySales.toLocaleString('en-IN')}</p>
           <div className="absolute right-3 bottom-3 opacity-10">
             <span className="material-symbols-outlined text-[48px]">payments</span>
@@ -156,7 +164,7 @@ export default async function DashboardPage() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <Link
-            href="/orders?status=PACKING"
+            href="/orders?status=PENDING"
             className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-all flex flex-col justify-between h-32 group cursor-pointer"
           >
             <div className="flex justify-between items-center w-full">
@@ -164,7 +172,7 @@ export default async function DashboardPage() {
               <span className="material-symbols-outlined text-outline/40 group-hover:text-primary text-[20px] transition-colors">arrow_forward</span>
             </div>
             <div>
-              <p className="font-display-lg text-primary text-3xl font-bold">{packingCount}</p>
+              <p className="font-display-lg text-primary text-3xl font-bold">{toPackCount}</p>
               <p className="text-[10px] font-label-sm uppercase tracking-wider text-on-surface-variant font-bold mt-1">Packing Required</p>
             </div>
           </Link>
@@ -178,13 +186,13 @@ export default async function DashboardPage() {
               <span className="material-symbols-outlined text-outline/40 group-hover:text-primary text-[20px] transition-colors">arrow_forward</span>
             </div>
             <div>
-              <p className="font-display-lg text-primary text-3xl font-bold">{packingCount}</p>
+              <p className="font-display-lg text-primary text-3xl font-bold">{toDispatchCount}</p>
               <p className="text-[10px] font-label-sm uppercase tracking-wider text-on-surface-variant font-bold mt-1">Dispatch Required</p>
             </div>
           </Link>
 
           <Link
-            href="/orders?status=PENDING"
+            href="/orders?payment=UNPAID"
             className="bg-surface-container-lowest p-6 rounded-lg border border-outline-variant/30 hover:border-primary/50 transition-all flex flex-col justify-between h-32 group cursor-pointer"
           >
             <div className="flex justify-between items-center w-full">

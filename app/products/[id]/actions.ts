@@ -582,3 +582,131 @@ export async function deleteProductAction(productId: string) {
     return { error: error.message || 'Failed to delete product.' };
   }
 }
+
+/**
+ * Updates an existing product's details, images and category attributes.
+ * The category (and so the product code) and URL slug are left unchanged.
+ */
+export async function updateProductAction(
+  productId: string,
+  data: {
+    name: string;
+    shortDesc?: string;
+    description?: string;
+    price: number;
+    costPrice?: number | null;
+    quantity: number;
+    primaryColour?: string;
+    secondaryColours?: string;
+    collectionId?: string | null;
+    images: string[];
+    attributes: { definitionId: string; value: string }[];
+  }
+) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { error: 'Unauthorized.' };
+  }
+
+  if (!data.name.trim()) {
+    return { error: 'Product name is required.' };
+  }
+  if (!(data.price > 0)) {
+    return { error: 'Price must be greater than zero.' };
+  }
+  if (data.costPrice != null && data.costPrice < 0) {
+    return { error: 'Cost price cannot be negative.' };
+  }
+  if (!Number.isInteger(data.quantity) || data.quantity < 0) {
+    return { error: 'Quantity must be a whole number (0 or more).' };
+  }
+  if (data.images.length === 0) {
+    return { error: 'Add at least one photo.' };
+  }
+
+  try {
+    const existing = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { category: { include: { attributeDefinitions: true } } },
+    });
+    if (!existing) {
+      return { error: 'Product not found.' };
+    }
+
+    // Only accept attributes that belong to this product's category, and
+    // enforce the ones marked required
+    const definitions = new Map(existing.category.attributeDefinitions.map((d) => [d.id, d]));
+    const attributes = data.attributes.filter((a) => definitions.has(a.definitionId));
+    for (const def of definitions.values()) {
+      if (def.required && !attributes.find((a) => a.definitionId === def.id)?.value.trim()) {
+        return { error: `${def.name} is required.` };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          name: data.name.trim(),
+          shortDesc: data.shortDesc?.trim() || null,
+          description: data.description?.trim() || null,
+          price: new Prisma.Decimal(data.price),
+          costPrice: data.costPrice != null ? new Prisma.Decimal(data.costPrice) : null,
+          // Unique pieces always have a quantity of 1
+          quantity: existing.isUnique ? existing.quantity : data.quantity,
+          primaryColour: data.primaryColour?.trim() || null,
+          secondaryColours: data.secondaryColours?.trim() || null,
+          collectionId: data.collectionId || null,
+        },
+      });
+
+      // Images: replace with the edited list (first one is the primary photo)
+      await tx.productImage.deleteMany({ where: { productId } });
+      await tx.productImage.createMany({
+        data: data.images.map((url, idx) => ({
+          productId,
+          url,
+          sortOrder: idx,
+          isPrimary: idx === 0,
+        })),
+      });
+
+      // Attributes: upsert filled values, remove cleared ones
+      for (const attr of attributes) {
+        const value = attr.value.trim();
+        if (value) {
+          await tx.productAttributeValue.upsert({
+            where: { productId_definitionId: { productId, definitionId: attr.definitionId } },
+            update: { value },
+            create: { productId, definitionId: attr.definitionId, value },
+          });
+        } else {
+          await tx.productAttributeValue.deleteMany({
+            where: { productId, definitionId: attr.definitionId },
+          });
+        }
+      }
+
+      await tx.activityLog.create({
+        data: {
+          entityType: 'PRODUCT',
+          entityId: productId,
+          action: 'UPDATED',
+          userId: user.id,
+          metadata: JSON.stringify({
+            name: data.name.trim(),
+            ...(Number(existing.price) !== data.price
+              ? { priceFrom: Number(existing.price), priceTo: data.price }
+              : {}),
+          }),
+        },
+      });
+    });
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateProductAction error:', error);
+    return { error: error.message || 'Failed to update product.' };
+  }
+}

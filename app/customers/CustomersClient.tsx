@@ -55,7 +55,8 @@ export default function CustomersClient({ initialCustomers }: CustomersClientPro
     const term = searchTerm.toLowerCase();
     return (
       c.name.toLowerCase().includes(term) ||
-      c.mobile.includes(term) ||
+      (c.mobile ?? '').includes(term) ||
+      (c.email ?? '').toLowerCase().includes(term) ||
       (c.city && c.city.toLowerCase().includes(term))
     );
   });

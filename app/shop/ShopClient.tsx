@@ -39,6 +39,14 @@ interface ShopClientProps {
   isAdmin?: boolean;
 }
 
+/** Toast copy for when a customer closes the Razorpay popup without paying. */
+function holdKeptMessage(expiresAt?: string | Date | null) {
+  const until = expiresAt
+    ? ` until ${new Date(expiresAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`
+    : '';
+  return `Payment not completed. This piece stays on hold for you${until} — you can pay anytime from My Holds.`;
+}
+
 export default function ShopClient({
   initialProducts,
   categories,
@@ -236,6 +244,8 @@ export default function ShopClient({
           modal: {
             ondismiss: function () {
               setIsCartCheckingOut(false);
+              toast.info('Payment not completed. Your pieces stay on hold for you — check out again from your cart to pay.');
+              router.refresh();
             }
           }
         };
@@ -353,8 +363,9 @@ export default function ShopClient({
   };
 
   // Direct Buy Now handler from the catalogue page
-  const handleBuyNow = async (productId: string, notes?: string) => {
-    if (!activeCustomer) {
+  // `justRegistered`: a guest was signed in moments ago, before state updated
+  const handleBuyNow = async (productId: string, notes?: string, justRegistered = false) => {
+    if (!activeCustomer && !justRegistered) {
       toast.warning('Please sign in or register to complete your purchase.');
       return;
     }
@@ -428,6 +439,12 @@ export default function ShopClient({
           },
           theme: {
             color: '#755566', // Mauve
+          },
+          modal: {
+            ondismiss: function () {
+              toast.info(holdKeptMessage(reserveRes.reservation?.expiresAt));
+              router.refresh();
+            },
           },
         };
 
@@ -843,7 +860,7 @@ export default function ShopClient({
               setActiveCustomer(regRes.customer);
               // Now that they are registered and logged in, trigger checkout
               if (checkoutMode === 'DIRECT' && checkoutProduct) {
-                await handleBuyNow(checkoutProduct.id, notes);
+                await handleBuyNow(checkoutProduct.id, notes, true);
               } else if (checkoutMode === 'CART') {
                 await handleCartCheckout(notes);
               }

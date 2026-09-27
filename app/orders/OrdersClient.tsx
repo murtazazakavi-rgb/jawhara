@@ -2,7 +2,53 @@
 
 import React, { useState, useTransition } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { updateOrderStatus, updateOrderPayment } from './actions';
+import { useToast } from '@/components/Toast';
+
+// Every OrderStatus value, so a select never falls back to showing the wrong one
+const ORDER_STATUS_OPTIONS = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'PACKING', label: 'Packing' },
+  { value: 'READY_FOR_PICKUP', label: 'Ready for pickup' },
+  { value: 'PICKUP_REQUESTED', label: 'Pickup requested' },
+  { value: 'DISPATCHED', label: 'Dispatched' },
+  { value: 'IN_TRANSIT', label: 'In transit' },
+  { value: 'OUT_FOR_DELIVERY', label: 'Out for delivery' },
+  { value: 'DELIVERED', label: 'Delivered' },
+  { value: 'DELIVERY_FAILED', label: 'Delivery failed' },
+  { value: 'RETURNED', label: 'Returned' },
+];
+
+// Every PaymentStatus value; the ones set only by the payment gateway are
+// shown (so the select is accurate) but can't be chosen by hand.
+const PAYMENT_STATUS_OPTIONS = [
+  { value: 'UNPAID', label: 'Unpaid', manual: true },
+  { value: 'PENDING', label: 'Pending', manual: false },
+  { value: 'PAID', label: 'Paid', manual: true },
+  { value: 'PARTIALLY_REFUNDED', label: 'Part refunded', manual: false },
+  { value: 'REFUNDED', label: 'Refunded', manual: true },
+  { value: 'FAILED', label: 'Failed', manual: false },
+];
+
+const IN_TRANSIT_STATUSES = ['READY_FOR_PICKUP', 'PICKUP_REQUESTED', 'DISPATCHED', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'];
+
+/** Confirmation copy for changes that notify the customer or move stock. */
+const STATUS_CONFIRM: Record<string, string> = {
+  DISPATCHED: 'Mark as dispatched? The customer will get a WhatsApp dispatch message.',
+  RETURNED: 'Mark as returned? All items in this order will be put back into stock.',
+};
+const PAYMENT_CONFIRM: Record<string, string> = {
+  PAID: 'Mark this order as paid? The customer may get a payment confirmation.',
+  REFUNDED: 'Mark this order as refunded?',
+  UNPAID: 'Mark this order as unpaid?',
+};
+
+function formatDeliveryAddress(order: any) {
+  const parts = [order.deliveryAddress, order.deliveryCity, order.deliveryState, order.deliveryPincode].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : null;
+}
 
 interface OrdersClientProps {
   initialOrders: any[];
@@ -14,10 +60,16 @@ interface OrdersClientProps {
 }
 
 export default function OrdersClient({ initialOrders, metrics }: OrdersClientProps) {
+  const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [statusTab, setStatusTab] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  // Derived from props so the modal reflects fresh data after router.refresh()
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const selectedOrder = initialOrders.find((o) => o.id === selectedOrderId) ?? null;
+  const setSelectedOrder = (order: any | null) => setSelectedOrderId(order?.id ?? null);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -25,6 +77,10 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
       const statusParam = params.get('status');
       if (statusParam) {
         setStatusTab(statusParam);
+      }
+      const paymentParam = params.get('payment');
+      if (paymentParam) {
+        setPaymentFilter(paymentParam);
       }
       const searchParam = params.get('search');
       if (searchParam) {
@@ -34,51 +90,53 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
   }, []);
 
   // Status transitions
-  const handleStatusChange = (orderId: string, status: any) => {
+  const handleStatusChange = (orderId: string, status: string) => {
+    if (STATUS_CONFIRM[status] && !confirm(STATUS_CONFIRM[status])) return;
     startTransition(async () => {
       const res = await updateOrderStatus({ orderId, status });
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
-        if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder((prev: any) => ({ ...prev, status }));
-        }
-        window.location.reload();
+        toast.success('Order status updated.');
+        router.refresh();
       }
     });
   };
 
   const handlePaymentChange = (orderId: string, paymentStatus: any) => {
+    if (PAYMENT_CONFIRM[paymentStatus] && !confirm(PAYMENT_CONFIRM[paymentStatus])) return;
     startTransition(async () => {
       const res = await updateOrderPayment({ orderId, paymentStatus });
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
-        if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder((prev: any) => ({ ...prev, paymentStatus }));
-        }
-        window.location.reload();
+        toast.success('Payment status updated.');
+        router.refresh();
       }
     });
   };
 
   // Filter and search
   const filteredOrders = initialOrders.filter((order) => {
-    const matchesTab = statusTab === 'ALL' || order.status === statusTab;
+    const matchesTab =
+      statusTab === 'ALL' ||
+      (statusTab === 'IN_TRANSIT' ? IN_TRANSIT_STATUSES.includes(order.status) : order.status === statusTab);
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       order.orderNumber.toLowerCase().includes(term) ||
       order.customer.name.toLowerCase().includes(term) ||
-      order.customer.mobile.includes(term) ||
+      (order.customer.mobile ?? '').includes(term) ||
+      (order.customer.email ?? '').toLowerCase().includes(term) ||
       (order.notes && order.notes.toLowerCase().includes(term));
-    return matchesTab && matchesSearch;
+    const matchesPayment = !paymentFilter || order.paymentStatus === paymentFilter;
+    return matchesTab && matchesSearch && matchesPayment;
   });
 
   const tabs = [
     { label: 'All Orders', value: 'ALL' },
     { label: 'Pending', value: 'PENDING' },
     { label: 'Packing', value: 'PACKING' },
-    { label: 'Dispatched', value: 'DISPATCHED' },
+    { label: 'In transit', value: 'IN_TRANSIT' },
     { label: 'Delivered', value: 'DELIVERED' },
     { label: 'Returned', value: 'RETURNED' },
   ];
@@ -143,6 +201,18 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
               </button>
             ))}
           </div>
+
+          {paymentFilter && (
+            <button
+              type="button"
+              onClick={() => setPaymentFilter(null)}
+              className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1 cursor-pointer"
+              aria-label="Clear payment filter"
+            >
+              Payment: {PAYMENT_STATUS_OPTIONS.find((o) => o.value === paymentFilter)?.label ?? paymentFilter}
+              <span className="material-symbols-outlined text-[14px]">close</span>
+            </button>
+          )}
 
           <div className="flex items-center gap-2 text-on-surface-variant bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/30">
             <span className="material-symbols-outlined text-[16px]">search</span>
@@ -249,11 +319,16 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
                       className={`text-[9px] font-label-sm px-2 py-0.5 rounded-full border cursor-pointer outline-none font-bold uppercase tracking-wider ${
                         order.paymentStatus === 'PAID'
                           ? 'bg-success/15 text-success border-success/30'
-                          : 'bg-error/15 text-error border-error/30'
+                          : ['UNPAID', 'FAILED'].includes(order.paymentStatus)
+                          ? 'bg-error/15 text-error border-error/30'
+                          : 'bg-surface-container-high text-on-surface-variant border-outline-variant/35'
                       }`}
                     >
-                      <option value="PAID">PAID</option>
-                      <option value="UNPAID">UNPAID</option>
+                      {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value} disabled={!opt.manual}>
+                          {opt.label.toUpperCase()}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -271,11 +346,11 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
                       }}
                       className="bg-surface-container-high text-on-surface-variant text-[9px] font-label-sm px-2 py-1 rounded-md uppercase tracking-wider border border-outline-variant/35 cursor-pointer outline-none focus:border-primary font-bold"
                     >
-                      <option value="PENDING">PENDING</option>
-                      <option value="PACKING">PACKING</option>
-                      <option value="DISPATCHED">DISPATCHED</option>
-                      <option value="DELIVERED">DELIVERED</option>
-                      <option value="RETURNED">RETURNED</option>
+                      {ORDER_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label.toUpperCase()}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -292,6 +367,7 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
             <button
               onClick={() => setSelectedOrder(null)}
               className="absolute top-4 right-4 text-outline hover:text-on-surface transition-colors cursor-pointer"
+              aria-label="Close order details"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
@@ -299,9 +375,19 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
             <h3 className="font-display-lg text-lg md:text-xl text-on-surface mb-1">
               Order {selectedOrder.orderNumber}
             </h3>
-            <p className="font-body-sm text-xs text-outline mb-6">
-              Registered on {new Date(selectedOrder.createdAt).toLocaleString()}
-            </p>
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <p className="font-body-sm text-xs text-outline">
+                Placed {new Date(selectedOrder.createdAt).toLocaleString('en-IN')}
+              </p>
+              <Link
+                href={`/orders/${selectedOrder.id}/receipt`}
+                target="_blank"
+                className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline shrink-0"
+              >
+                <span className="material-symbols-outlined text-[16px]">receipt_long</span>
+                Receipt
+              </Link>
+            </div>
 
             <div className="flex flex-col gap-6">
               {/* Customer details */}
@@ -311,9 +397,18 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
                 <p className="font-body-sm text-xs text-on-surface-variant">
                   {selectedOrder.customer.mobile} · {selectedOrder.customer.email || 'No email provided'}
                 </p>
-                {selectedOrder.customer.shippingAddress && (
-                  <p className="text-[11px] text-outline mt-1 border-t border-outline-variant/15 pt-1">
-                    📍 {selectedOrder.customer.shippingAddress}
+                {formatDeliveryAddress(selectedOrder) ? (
+                  <div className="text-xs text-on-surface-variant mt-2 border-t border-outline-variant/15 pt-2 flex items-start gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-outline">location_on</span>
+                    <span>
+                      {selectedOrder.deliveryName && <strong className="block text-on-surface">{selectedOrder.deliveryName}</strong>}
+                      {formatDeliveryAddress(selectedOrder)}
+                      {selectedOrder.deliveryPhone && <span className="block">{selectedOrder.deliveryPhone}</span>}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-outline mt-2 border-t border-outline-variant/15 pt-2">
+                    No delivery address on the order — check the checkout notes below.
                   </p>
                 )}
               </div>
@@ -387,11 +482,11 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
                       onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
                       className="bg-transparent border border-outline-variant rounded-lg px-3 py-1.5 font-label-sm text-xs focus:ring-0 focus:border-primary"
                     >
-                      <option value="PENDING">Pending Packing</option>
-                      <option value="PACKING">Packing</option>
-                      <option value="DISPATCHED">Dispatched / Sent</option>
-                      <option value="DELIVERED">Delivered</option>
-                      <option value="RETURNED">Returned</option>
+                      {ORDER_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -403,8 +498,11 @@ export default function OrdersClient({ initialOrders, metrics }: OrdersClientPro
                       onChange={(e) => handlePaymentChange(selectedOrder.id, e.target.value)}
                       className="bg-transparent border border-outline-variant rounded-lg px-3 py-1.5 font-label-sm text-xs focus:ring-0 focus:border-primary"
                     >
-                      <option value="UNPAID">Unpaid</option>
-                      <option value="PAID">Paid / Received</option>
+                      {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value} disabled={!opt.manual}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

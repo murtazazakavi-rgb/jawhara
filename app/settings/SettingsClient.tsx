@@ -19,7 +19,7 @@ import {
 const ROLE_COLUMNS = ['OWNER', 'ADMIN', 'SALES'] as const;
 
 const ROLE_PERMISSIONS: { label: string; roles: readonly (typeof ROLE_COLUMNS)[number][] }[] = [
-  { label: 'Add products, reserve & mark sold', roles: ['OWNER', 'ADMIN', 'SALES'] },
+  { label: 'Add & edit products, reserve & mark sold', roles: ['OWNER', 'ADMIN', 'SALES'] },
   { label: 'Manage orders', roles: ['OWNER', 'ADMIN', 'SALES'] },
   { label: 'Use AI Assistant', roles: ['OWNER', 'ADMIN', 'SALES'] },
   { label: 'Use WhatsApp Sales Center', roles: ['OWNER', 'ADMIN', 'SALES'] },
@@ -239,9 +239,21 @@ export default function SettingsClient({
 
   // Batch save for Boutique Settings Profile
   const handleSaveProfileSettings = async () => {
+    for (const [label, value] of [
+      ['Reservation hold', holdMin],
+      ['Payment link expiry', expiryMin],
+    ] as const) {
+      const minutes = Number(value);
+      if (!Number.isInteger(minutes) || minutes < 1) {
+        alert(`${label} must be a whole number of minutes (1 or more).`);
+        return;
+      }
+    }
+
     setIsSavingProfile(true);
     try {
-      await Promise.all([
+      // saveSystemSetting reports failures as { error } rather than throwing
+      const results = await Promise.all([
         saveSystemSetting('reservationHoldMinutes', holdMin),
         saveSystemSetting('paymentLinkExpiryMinutes', expiryMin),
         saveSystemSetting('currency', currencyVal),
@@ -251,6 +263,11 @@ export default function SettingsClient({
         saveSystemSetting('enableAdminEmailAlerts', emailAlertsVal ? 'true' : 'false'),
         saveSystemSetting('enableAdminWhatsAppAlerts', whatsappAlertsVal ? 'true' : 'false'),
       ]);
+      const failed = results.find((r) => r?.error);
+      if (failed) {
+        alert(`Some settings were not saved: ${failed.error}`);
+        return;
+      }
       alert('Boutique settings saved successfully!');
       router.refresh();
     } catch (err) {

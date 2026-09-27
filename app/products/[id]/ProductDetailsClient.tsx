@@ -10,12 +10,15 @@ import {
   deleteProductAction
 } from './actions';
 import { printPriceTags } from '@/lib/printPriceTags';
+import Link from 'next/link';
 
 interface ProductDetailsClientProps {
   product: any;
   customers: any[];
   activeReservation: any | null;
   salesHistory: any[];
+  /** Owner/Admin: may publish, unpublish and delete */
+  canManage: boolean;
 }
 
 export default function ProductDetailsClient({
@@ -23,6 +26,7 @@ export default function ProductDetailsClient({
   customers,
   activeReservation,
   salesHistory,
+  canManage,
 }: ProductDetailsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -232,19 +236,30 @@ export default function ProductDetailsClient({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleTogglePublish}
-              className="text-[11px] px-3 py-1.5 border border-outline-variant hover:bg-surface-container-low transition-colors rounded font-label-md uppercase tracking-wider cursor-pointer"
+            <Link
+              href={`/products/${product.id}/edit`}
+              className="text-[11px] px-3 py-1.5 bg-primary text-on-primary hover:opacity-90 transition-opacity rounded font-label-md uppercase tracking-wider flex items-center gap-1"
             >
-              {product.publishStatus === 'PUBLISHED' ? 'Set to Draft' : 'Publish'}
-            </button>
-            <button
-              onClick={handleDeleteProduct}
-              disabled={deleting}
-              className="text-[11px] px-3 py-1.5 border border-error text-error hover:bg-error/5 transition-colors rounded font-label-md uppercase tracking-wider cursor-pointer disabled:opacity-50"
-            >
-              {deleting ? 'Deleting...' : 'Delete'}
-            </button>
+              <span className="material-symbols-outlined text-[14px]">edit</span>
+              Edit
+            </Link>
+            {canManage && (
+              <>
+                <button
+                  onClick={handleTogglePublish}
+                  className="text-[11px] px-3 py-1.5 border border-outline-variant hover:bg-surface-container-low transition-colors rounded font-label-md uppercase tracking-wider cursor-pointer"
+                >
+                  {product.publishStatus === 'PUBLISHED' ? 'Set to Draft' : 'Publish'}
+                </button>
+                <button
+                  onClick={handleDeleteProduct}
+                  disabled={deleting}
+                  className="text-[11px] px-3 py-1.5 border border-error text-error hover:bg-error/5 transition-colors rounded font-label-md uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </>
+            )}
           </div>
         </div>
 

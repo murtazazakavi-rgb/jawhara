@@ -37,6 +37,14 @@ interface ProductActionsClientProps {
   productImage?: string | null;
 }
 
+/** Toast copy for when a customer closes the Razorpay popup without paying. */
+function holdKeptMessage(expiresAt?: string | Date | null) {
+  const until = expiresAt
+    ? ` until ${new Date(expiresAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`
+    : '';
+  return `Payment not completed. This piece stays on hold for you${until} — you can pay anytime from My Holds.`;
+}
+
 export default function ProductActionsClient({
   productId,
   productSlug,
@@ -227,6 +235,12 @@ export default function ProductActionsClient({
           theme: {
             color: '#755566', // Mauve
           },
+          modal: {
+            ondismiss: function () {
+              toast.info(holdKeptMessage(activeReservation.expiresAt));
+              router.refresh();
+            },
+          },
         };
 
         const rzp = new (window as any).Razorpay(options);
@@ -252,8 +266,9 @@ export default function ProductActionsClient({
   };
 
   // Direct checkout handler (Buy Now on available item)
-  const handleBuyNowDirect = async (notes?: string) => {
-    if (!activeCustomer) {
+  // `justRegistered`: a guest was signed in moments ago, before state updated
+  const handleBuyNowDirect = async (notes?: string, justRegistered = false) => {
+    if (!activeCustomer && !justRegistered) {
       toast.warning('Please sign in or register to complete your purchase.');
       return;
     }
@@ -327,6 +342,12 @@ export default function ProductActionsClient({
           },
           theme: {
             color: '#755566', // Mauve
+          },
+          modal: {
+            ondismiss: function () {
+              toast.info(holdKeptMessage(reserveRes.reservation?.expiresAt));
+              router.refresh();
+            },
           },
         };
 
@@ -472,7 +493,7 @@ export default function ProductActionsClient({
             if (regRes.customer) {
               setActiveCustomer(regRes.customer);
               if (checkoutType === 'DIRECT') {
-                await handleBuyNowDirect(notes);
+                await handleBuyNowDirect(notes, true);
               } else {
                 await handleCheckout(notes);
               }

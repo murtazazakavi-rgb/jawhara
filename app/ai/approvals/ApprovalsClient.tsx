@@ -20,6 +20,8 @@ export default function ApprovalsClient() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedDrafts, setSelectedDrafts] = useState<Record<string, number>>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchApprovals();
@@ -27,12 +29,15 @@ export default function ApprovalsClient() {
 
   async function fetchApprovals() {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch('/api/ai/approvals?status=PENDING');
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not load approvals.');
       setApprovals(data.approvals ?? []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load approvals:', err);
+      setLoadError(err.message || 'Could not load approvals.');
     } finally {
       setLoading(false);
     }
@@ -43,15 +48,13 @@ export default function ApprovalsClient() {
     action: 'APPROVED' | 'REJECTED' | 'DISMISSED'
   ) {
     setActionLoading(approvalId + action);
+    setErrors((prev) => ({ ...prev, [approvalId]: '' }));
     try {
-      await fetch(`/api/ai/approvals/${approvalId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
+      await patchApproval(approvalId, action);
       setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update approval:', err);
+      setErrors((prev) => ({ ...prev, [approvalId]: err.message || 'Could not update this item.' }));
     } finally {
       setActionLoading(null);
     }
@@ -59,27 +62,43 @@ export default function ApprovalsClient() {
 
   async function handleSend(approval: Approval) {
     setActionLoading(approval.id + 'SEND');
+    setErrors((prev) => ({ ...prev, [approval.id]: '' }));
     try {
       // First approve
-      await fetch(`/api/ai/approvals/${approval.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'APPROVED' }),
-      });
+      await patchApproval(approval.id, 'APPROVED');
 
-      // Then execute
+      // Then execute; if that fails, put the item back in the queue so it
+      // isn't left approved-but-never-sent
       const draftIndex = selectedDrafts[approval.id] ?? 0;
-      await fetch(`/api/ai/approvals/${approval.id}`, {
+      const res = await fetch(`/api/ai/approvals/${approval.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ draftIndex }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        await patchApproval(approval.id, 'PENDING').catch(() => {});
+        throw new Error(data.error || 'Sending failed.');
+      }
 
       setApprovals((prev) => prev.filter((a) => a.id !== approval.id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to send approval:', err);
+      setErrors((prev) => ({ ...prev, [approval.id]: `Not sent: ${err.message || 'Sending failed.'}` }));
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function patchApproval(approvalId: string, action: string) {
+    const res = await fetch(`/api/ai/approvals/${approvalId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Could not update this item.');
     }
   }
 
@@ -102,7 +121,21 @@ export default function ApprovalsClient() {
         </p>
       </div>
 
-      {approvals.length === 0 && (
+      {loadError && (
+        <div className="text-center py-16 text-on-surface-variant">
+          <span className="material-symbols-outlined text-5xl block mb-4 text-error/60">error</span>
+          <p className="font-medium">{loadError}</p>
+          <button
+            type="button"
+            onClick={fetchApprovals}
+            className="mt-4 px-4 py-2 rounded-full bg-primary text-on-primary text-sm cursor-pointer"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!loadError && approvals.length === 0 && (
         <div className="text-center py-20 text-on-surface-variant">
           <span className="material-symbols-outlined text-5xl block mb-4 opacity-30">done_all</span>
           <p className="font-medium">All caught up!</p>
@@ -232,6 +265,13 @@ export default function ApprovalsClient() {
                   Dismiss
                 </button>
               </div>
+
+              {errors[approval.id] && (
+                <p role="alert" className="px-6 pb-5 -mt-2 text-sm text-error flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-base">error</span>
+                  {errors[approval.id]}
+                </p>
+              )}
             </div>
           );
         })}

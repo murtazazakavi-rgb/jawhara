@@ -533,8 +533,10 @@ export default function ShopDashboardClient({
                           Complete Payment
                         </Link>
                       ) : (
-                        <span className="text-[10px] font-label-md text-outline italic uppercase tracking-wider">
-                          Payment Link Pending Staff Approval
+                        // Checkout-popup orders have no link; they are paid from the
+                        // matching hold card and are removed if that hold expires.
+                        <span className="text-xs text-on-surface-variant">
+                          Awaiting payment · tap Buy Now on your hold above to pay
                         </span>
                       )}
                     </div>

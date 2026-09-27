@@ -38,6 +38,11 @@ module.exports = {
         "error-container": "#ffdad6",
         "on-error": "#ffffff",
         "on-error-container": "#93000a",
+        // Status colours used by badges ("Available", "Paid", "On Hold", …)
+        success: "#2e6b3a",
+        "on-success": "#ffffff",
+        warning: "#8a5300",
+        "on-warning": "#ffffff",
       },
       spacing: {
         "margin-desktop": "64px",

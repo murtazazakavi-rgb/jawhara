@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { getUserWithCapability } from '@/lib/authz';
 import { revalidatePath } from 'next/cache';
-import { InventoryStatus } from '@prisma/client';
+import { InventoryStatus, OrderStatus } from '@prisma/client';
 import { emitBusinessEvent } from '@/lib/domain/automation';
 
 export async function updateOrderStatus({
@@ -18,33 +18,60 @@ export async function updateOrderStatus({
     return { error: 'Unauthorized.' };
   }
 
-  try {
-    const order = await prisma.order.update({
-      where: { id: orderId },
-      data: { status: status as any },
-    });
+  if (!(Object.values(OrderStatus) as string[]).includes(status)) {
+    return { error: `Unknown order status: ${status}` };
+  }
+  const nextStatus = status as OrderStatus;
 
-    // If order is returned, we restore the stock and mark it as AVAILABLE
-    const orderItem = await prisma.orderItem.findFirst({
-      where: { orderId },
+  try {
+    const previous = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true },
     });
-    if (orderItem && status === 'RETURNED') {
-      await prisma.product.update({
-        where: { id: orderItem.productId },
-        data: { 
-          quantity: { increment: orderItem.quantity },
-          inventoryStatus: 'AVAILABLE' 
-        },
-      });
+    if (!previous) {
+      return { error: 'Order not found.' };
+    }
+    if (previous.status === nextStatus) {
+      return { success: true };
     }
 
-    if (status === 'DISPATCHED') {
+    const order = await prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id: orderId },
+        data: { status: nextStatus },
+      });
+
+      // Returned: put every item back into stock (once, on the transition)
+      if (nextStatus === OrderStatus.RETURNED) {
+        const items = await tx.orderItem.findMany({
+          where: { orderId },
+          include: { product: { select: { isUnique: true } } },
+        });
+        for (const item of items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: item.product.isUnique
+              ? { inventoryStatus: InventoryStatus.AVAILABLE, quantity: 1 }
+              : { quantity: { increment: item.quantity }, inventoryStatus: InventoryStatus.AVAILABLE },
+          });
+        }
+      }
+
+      return updated;
+    });
+
+    if (nextStatus === OrderStatus.DISPATCHED) {
+      // Use the real shipment's tracking details when one exists
+      const shipment = await prisma.shipment.findFirst({
+        where: { orderId },
+        orderBy: { createdAt: 'desc' },
+      });
       try {
         await emitBusinessEvent('ORDER_DISPATCHED', {
           orderId,
-          trackingNumber: `TRK-${order.orderNumber}`,
-          trackingUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://jawhara-os.vercel.app'}/orders/${orderId}/receipt`,
-          carrier: 'Priority Courier',
+          trackingNumber: shipment?.awb || shipment?.trackingNumber || null,
+          trackingUrl: shipment?.trackingUrl || null,
+          carrier: shipment?.courierName || null,
         });
       } catch (err) {
         console.error('Failed to emit ORDER_DISPATCHED:', err);
@@ -56,9 +83,9 @@ export async function updateOrderStatus({
       data: {
         entityType: 'ORDER',
         entityId: orderId,
-        action: `STATUS_${status}`,
+        action: `STATUS_${nextStatus}`,
         userId: user.id,
-        metadata: JSON.stringify({ status }),
+        metadata: JSON.stringify({ from: previous.status, to: nextStatus }),
       },
     });
 

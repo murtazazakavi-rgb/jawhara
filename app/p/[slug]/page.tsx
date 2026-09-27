@@ -221,7 +221,8 @@ export default async function PublicProductPage({ params }: PublicProductPagePro
               </span>
             </div>
             
-            {product.inventoryStatus === 'RESERVED' && (
+            {/* The holder sees their own hold in the actions panel instead */}
+            {product.inventoryStatus === 'RESERVED' && product.reservations[0]?.customerId !== customer?.id && (
               <HoldTimerBadge expiresAt={product.reservations[0]?.expiresAt?.toISOString()} />
             )}
             <p className="font-body-lg text-on-surface-variant leading-relaxed">

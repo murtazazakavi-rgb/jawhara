@@ -99,6 +99,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         customers={customers}
         activeReservation={activeReservation}
         salesHistory={salesHistory}
+        canManage={user.role === 'OWNER' || user.role === 'ADMIN'}
       />
     </AppShell>
   );

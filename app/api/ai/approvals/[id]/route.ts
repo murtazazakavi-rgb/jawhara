@@ -27,21 +27,26 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { action, notes } = body; // action: APPROVED | REJECTED | DISMISSED
+  // action: APPROVED | REJECTED | DISMISSED, or PENDING to return an approved
+  // item to the queue when executing it failed
+  const { action, notes } = body;
 
-  if (!['APPROVED', 'REJECTED', 'DISMISSED'].includes(action)) {
+  if (!['APPROVED', 'REJECTED', 'DISMISSED', 'PENDING'].includes(action)) {
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }
 
   try {
     const approval = await prisma.aIApproval.update({
       where: { id },
-      data: {
-        status: action,
-        reviewedBy: user.id,
-        reviewedAt: new Date(),
-        reviewNotes: notes,
-      },
+      data:
+        action === 'PENDING'
+          ? { status: action, reviewedBy: null, reviewedAt: null }
+          : {
+              status: action,
+              reviewedBy: user.id,
+              reviewedAt: new Date(),
+              reviewNotes: notes,
+            },
     });
 
     return NextResponse.json({ approval });

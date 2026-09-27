@@ -321,10 +321,10 @@ export default function ProductsListClient({ products, canDelete }: ProductsList
                       <span className="material-symbols-outlined text-[16px]">label</span>
                     </button>
                     <Link
-                      href={`/products/${product.id}`}
+                      href={`/products/${product.id}/edit`}
                       className={`${iconButtonClass} hover:bg-surface-container-high hover:text-on-surface`}
-                      title="Open & manage"
-                      aria-label={`Open ${product.name}`}
+                      title="Edit product"
+                      aria-label={`Edit ${product.name}`}
                     >
                       <span className="material-symbols-outlined text-[16px]">edit</span>
                     </Link>
@@ -443,10 +443,10 @@ export default function ProductsListClient({ products, canDelete }: ProductsList
                     <span>Tag</span>
                   </button>
                   <Link
-                    href={`/products/${product.id}`}
+                    href={`/products/${product.id}/edit`}
                     className={`${iconButtonClass} hover:bg-surface-container-high hover:text-on-surface`}
-                    title="Open & manage"
-                    aria-label={`Open ${product.name}`}
+                    title="Edit product"
+                    aria-label={`Edit ${product.name}`}
                   >
                     <span className="material-symbols-outlined text-[16px]">edit</span>
                   </Link>

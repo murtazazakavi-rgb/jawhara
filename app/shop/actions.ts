@@ -15,6 +15,168 @@ import {
   verifyCustomerPassword,
 } from '@/lib/security/customerPassword';
 
+type CheckoutCustomer = {
+  id: string;
+  name: string;
+  email: string;
+  mobile: string | null;
+  normalizedMobile: string | null;
+};
+
+const PAYMENT_WINDOW_MINUTES = 120;
+
+type CheckoutFields = {
+  orderId: string;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerMobile: string;
+  paymentUrl: string;
+};
+type Absent<T> = { [K in keyof T]?: undefined };
+
+/** Result of starting checkout: Razorpay popup, hosted payment link, or error. */
+type CheckoutStartResult =
+  | ({ success: true; useStandardCheckout: true; error?: undefined } &
+      Omit<CheckoutFields, 'paymentUrl'> & Absent<Pick<CheckoutFields, 'paymentUrl'>>)
+  | ({ success: true; useStandardCheckout?: undefined; error?: undefined } &
+      Pick<CheckoutFields, 'orderId'> & { paymentUrl?: string } &
+      Absent<Omit<CheckoutFields, 'orderId' | 'paymentUrl'>>)
+  | ({ error: string; success?: undefined; useStandardCheckout?: undefined } & Absent<CheckoutFields>);
+
+/**
+ * Finds this customer's still-unpaid order for exactly the given products, so
+ * retrying checkout (e.g. after closing the Razorpay popup) reuses it instead
+ * of creating a duplicate order each time.
+ */
+async function findReusableUnpaidOrder(
+  db: Pick<typeof prisma, 'order'>,
+  customerId: string,
+  productIds: string[]
+) {
+  const candidates = await db.order.findMany({
+    where: {
+      customerId,
+      paymentStatus: 'UNPAID',
+      status: OrderStatus.PENDING,
+      orderItems: { some: { productId: { in: productIds } } },
+    },
+    include: { orderItems: { select: { productId: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  const wanted = [...productIds].sort().join(',');
+  return (
+    candidates.find(
+      (o) => o.orderItems.map((i) => i.productId).sort().join(',') === wanted
+    ) ?? null
+  );
+}
+
+/**
+ * Starts (or resumes) payment for an order: reuses an unexpired Razorpay order
+ * or payment link for it when one exists, otherwise creates a new one.
+ */
+async function startOrderPayment(
+  order: { id: string; orderNumber: string; total: Prisma.Decimal },
+  customer: CheckoutCustomer
+): Promise<CheckoutStartResult> {
+  const provider = process.env.PAYMENT_PROVIDER || 'mock';
+  const amount = Number(order.total);
+  const customerMobile = customer.normalizedMobile || customer.mobile || '';
+
+  const existing = await prisma.paymentRequest.findFirst({
+    where: {
+      orderId: order.id,
+      status: 'CREATED',
+      expiresAt: { gt: new Date() },
+      providerPaymentLinkId: { not: null },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (provider === 'razorpay') {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) {
+      return { error: 'Razorpay configuration error.' };
+    }
+
+    // Standard checkout requests have no short URL; Razorpay lets the same
+    // order be retried until it is paid.
+    let razorpayOrderId = existing && !existing.shortUrl ? existing.providerPaymentLinkId! : null;
+    if (!razorpayOrderId) {
+      const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+      const rzpOrder = await razorpay.orders.create({
+        amount: Math.round(amount * 100),
+        currency: 'INR',
+        receipt: order.orderNumber,
+      });
+      razorpayOrderId = rzpOrder.id;
+      await prisma.paymentRequest.create({
+        data: {
+          orderId: order.id,
+          provider: 'RAZORPAY',
+          providerPaymentLinkId: rzpOrder.id,
+          shortUrl: '',
+          amount: order.total,
+          status: 'CREATED',
+          expiresAt: new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60 * 1000),
+        },
+      });
+    }
+
+    revalidatePath('/', 'layout');
+    return {
+      success: true as const,
+      useStandardCheckout: true as const,
+      orderId: order.id,
+      razorpayOrderId: razorpayOrderId!,
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      orderNumber: order.orderNumber,
+      customerName: customer.name,
+      customerEmail: customer.email || '',
+      customerMobile,
+    };
+  }
+
+  if (existing?.shortUrl) {
+    return { success: true as const, paymentUrl: existing.shortUrl, orderId: order.id };
+  }
+
+  const res = await createPaymentLink({
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    amount,
+    customerName: customer.name,
+    customerMobile,
+    customerEmail: customer.email || undefined,
+    expiresInMinutes: PAYMENT_WINDOW_MINUTES,
+  });
+
+  if (!res.success) {
+    return { error: res.error || 'Failed to generate checkout payment link.' };
+  }
+
+  await prisma.paymentRequest.create({
+    data: {
+      orderId: order.id,
+      provider: 'RAZORPAY',
+      providerPaymentLinkId: res.providerPaymentLinkId || '',
+      shortUrl: res.shortUrl || '',
+      amount: order.total,
+      status: 'CREATED',
+      expiresAt: new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60 * 1000),
+    },
+  });
+
+  revalidatePath('/', 'layout');
+  return { success: true as const, paymentUrl: res.shortUrl, orderId: order.id };
+}
+
 /** Customer fields that are safe to return to the browser. */
 function toPublicCustomer(customer: {
   id: string;
@@ -218,6 +380,20 @@ export async function reserveProductAction(productId: string) {
         throw new Error('This item is not available in the public catalog.');
       }
 
+      // Already held by this customer (e.g. retrying Buy Now): reuse the hold
+      const ownHold = await tx.reservation.findFirst({
+        where: {
+          productId,
+          customerId: customer.id,
+          status: 'ACTIVE',
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { reservedAt: 'desc' },
+      });
+      if (ownHold) {
+        return { reservation: ownHold, reused: true };
+      }
+
       if (product.inventoryStatus !== 'AVAILABLE' || product.quantity <= 0) {
         throw new Error('This piece is no longer available.');
       }
@@ -284,20 +460,22 @@ export async function reserveProductAction(productId: string) {
         },
       });
 
-      return reservation;
+      return { reservation, reused: false };
     });
 
-    // Emit business event for reservation creation asynchronously in background (instant UI response)
-    emitBusinessEvent('RESERVATION_CREATED', {
-      reservationId: result.id,
-      productId,
-      customerId: customer.id,
-    }).catch((err) => {
-      console.error('Failed to emit RESERVATION_CREATED event:', err);
-    });
+    if (!result.reused) {
+      // Emit business event for reservation creation asynchronously in background (instant UI response)
+      emitBusinessEvent('RESERVATION_CREATED', {
+        reservationId: result.reservation.id,
+        productId,
+        customerId: customer.id,
+      }).catch((err) => {
+        console.error('Failed to emit RESERVATION_CREATED event:', err);
+      });
+    }
 
     revalidatePath('/', 'layout');
-    return { success: true, reservation: result };
+    return { success: true, reservation: result.reservation, alreadyHeld: result.reused };
   } catch (error: any) {
     console.error('reserveProductAction error:', error);
     return { error: error.message || 'Failed to place item on hold.' };
@@ -526,7 +704,7 @@ export async function getClientMessagesAction() {
 /**
  * Initiates the checkout payment process for a reserved product.
  */
-export async function clientCheckoutAction(data: { reservationId: string; notes?: string }) {
+export async function clientCheckoutAction(data: { reservationId: string; notes?: string }): Promise<CheckoutStartResult> {
   const customer = await getCurrentCustomer();
   if (!customer) {
     return { error: 'Authentication required. Please log in first.' };
@@ -547,115 +725,51 @@ export async function clientCheckoutAction(data: { reservationId: string; notes?
       return { error: 'Unauthorized.' };
     }
 
-    // 2. Create the Order
-    const count = await prisma.order.count();
-    const orderNumber = `JWR-ORD-${(count + 1).toString().padStart(4, '0')}`;
+    // 2. Reuse this customer's unpaid order for the piece, or create one
+    let order = await findReusableUnpaidOrder(prisma, customer.id, [reservation.productId]);
 
-    const order = await prisma.order.create({
-      data: {
-        customerId: customer.id,
-        orderNumber,
-        subtotal: reservation.product.price,
-        total: reservation.product.price,
-        status: OrderStatus.PENDING,
-        paymentStatus: 'UNPAID',
-        notes: data.notes || null,
-        orderItems: {
-          create: {
-            productId: reservation.productId,
-            quantity: 1,
-            unitPrice: reservation.product.price,
-            finalPrice: reservation.product.price,
+    if (order) {
+      if (data.notes && data.notes !== order.notes) {
+        order = await prisma.order.update({
+          where: { id: order.id },
+          data: { notes: data.notes },
+          include: { orderItems: { select: { productId: true } } },
+        });
+      }
+    } else {
+      const count = await prisma.order.count();
+      const orderNumber = `JWR-ORD-${(count + 1).toString().padStart(4, '0')}`;
+
+      order = await prisma.order.create({
+        data: {
+          customerId: customer.id,
+          orderNumber,
+          subtotal: reservation.product.price,
+          total: reservation.product.price,
+          status: OrderStatus.PENDING,
+          paymentStatus: 'UNPAID',
+          notes: data.notes || null,
+          orderItems: {
+            create: {
+              productId: reservation.productId,
+              quantity: 1,
+              unitPrice: reservation.product.price,
+              finalPrice: reservation.product.price,
+            },
           },
         },
-      },
-    });
+        include: { orderItems: { select: { productId: true } } },
+      });
 
-    try {
-      await emitBusinessEvent('ORDER_CREATED', { orderId: order.id });
-    } catch (e) {
-      console.error('Failed to emit ORDER_CREATED in clientCheckoutAction:', e);
+      try {
+        await emitBusinessEvent('ORDER_CREATED', { orderId: order.id });
+      } catch (e) {
+        console.error('Failed to emit ORDER_CREATED in clientCheckoutAction:', e);
+      }
     }
 
-    const provider = process.env.PAYMENT_PROVIDER || 'mock';
-    if (provider === 'razorpay') {
-      const keyId = process.env.RAZORPAY_KEY_ID;
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-      if (!keyId || !keySecret) {
-        return { error: 'Razorpay configuration error.' };
-      }
-
-      const razorpay = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret,
-      });
-
-      const amountInPaise = Math.round(Number(order.total) * 100);
-      const rzpOrder = await razorpay.orders.create({
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt: order.orderNumber,
-      });
-
-      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
-      await prisma.paymentRequest.create({
-        data: {
-          orderId: order.id,
-          provider: 'RAZORPAY',
-          providerPaymentLinkId: rzpOrder.id,
-          shortUrl: '',
-          amount: order.total,
-          status: 'CREATED',
-          expiresAt,
-        },
-      });
-
-      revalidatePath('/', 'layout');
-      return {
-        success: true,
-        useStandardCheckout: true,
-        razorpayOrderId: rzpOrder.id,
-        amount: rzpOrder.amount,
-        currency: rzpOrder.currency,
-        orderNumber: order.orderNumber,
-        customerName: customer.name,
-        customerEmail: customer.email || '',
-        customerMobile: customer.normalizedMobile || customer.mobile || '',
-      };
-    } else {
-      // 3. Generate Razorpay Payment Link
-      const res = await createPaymentLink({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        amount: Number(order.total),
-        customerName: customer.name,
-        customerMobile: customer.normalizedMobile || customer.mobile || '',
-        customerEmail: customer.email || undefined,
-        expiresInMinutes: 120,
-      });
-
-      if (!res.success) {
-        return { error: res.error || 'Failed to generate checkout payment link.' };
-      }
-
-      // 4. Store PaymentRequest record
-      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
-      await prisma.paymentRequest.create({
-        data: {
-          orderId: order.id,
-          provider: 'RAZORPAY',
-          providerPaymentLinkId: res.providerPaymentLinkId || '',
-          shortUrl: res.shortUrl || '',
-          amount: order.total,
-          status: 'CREATED',
-          expiresAt,
-        },
-      });
-
-      revalidatePath('/', 'layout');
-      return { success: true, paymentUrl: res.shortUrl };
-    }
+    // 3. Start (or resume) payment
+    return await startOrderPayment(order, customer);
   } catch (error: any) {
     console.error('clientCheckoutAction error:', error);
     let errorMsg = 'Failed to create order checkout.';
@@ -681,7 +795,7 @@ export async function clientCheckoutAction(data: { reservationId: string; notes?
 /**
  * Initiates the checkout payment process for a list of products in the cart.
  */
-export async function clientCartCheckoutAction(data: { items: { productId: string; quantity: number }[]; notes?: string }) {
+export async function clientCartCheckoutAction(data: { items: { productId: string; quantity: number }[]; notes?: string }): Promise<CheckoutStartResult> {
   const customer = await getCurrentCustomer();
   if (!customer) {
     return { error: 'Authentication required. Please log in first.' };
@@ -707,11 +821,32 @@ export async function clientCartCheckoutAction(data: { items: { productId: strin
       // Map for quick product lookup
       const productsMap = new Map(products.map(p => [p.id, p]));
 
+      // Pieces this customer already holds (e.g. from an earlier checkout
+      // attempt) count as theirs rather than "reserved by another customer".
+      const ownHolds = await tx.reservation.findMany({
+        where: {
+          customerId: customer.id,
+          productId: { in: productIds },
+          status: 'ACTIVE',
+          expiresAt: { gt: new Date() },
+        },
+      });
+      const ownHoldQty = new Map<string, number>();
+      for (const hold of ownHolds) {
+        ownHoldQty.set(hold.productId, (ownHoldQty.get(hold.productId) || 0) + hold.quantity);
+      }
+      const isHeldByCustomer = (productId: string, quantity: number) =>
+        (ownHoldQty.get(productId) || 0) >= quantity;
+
       // Check availability of each product
       for (const item of data.items) {
         const product = productsMap.get(item.productId);
         if (!product) {
           throw new Error('Product not found.');
+        }
+
+        if (product.publishStatus === 'PUBLISHED' && isHeldByCustomer(item.productId, item.quantity)) {
+          continue;
         }
 
         if (product.publishStatus !== 'PUBLISHED') {
@@ -742,6 +877,10 @@ export async function clientCartCheckoutAction(data: { items: { productId: strin
       // 3. Atomically update product inventory and create reservations
       for (const item of data.items) {
         const product = productsMap.get(item.productId)!;
+
+        if (isHeldByCustomer(item.productId, item.quantity)) {
+          continue;
+        }
 
         if (product.isUnique) {
           const updateResult = await tx.product.updateMany({
@@ -798,7 +937,16 @@ export async function clientCartCheckoutAction(data: { items: { productId: strin
         });
       }
 
-      // 4. Create the Order
+      // 4. Reuse this customer's unpaid order for the same items, or create one
+      const reusable = await findReusableUnpaidOrder(tx, customer.id, productIds);
+      if (reusable) {
+        const order = await tx.order.update({
+          where: { id: reusable.id },
+          data: data.notes ? { notes: data.notes } : {},
+        });
+        return { order, totalAmount: Number(order.total), isNew: false };
+      }
+
       const count = await tx.order.count();
       const orderNumber = `JWR-ORD-${(count + 1).toString().padStart(4, '0')}`;
       const totalAmount = data.items.reduce((sum, item) => {
@@ -829,97 +977,20 @@ export async function clientCartCheckoutAction(data: { items: { productId: strin
         },
       });
 
-      return { order, totalAmount };
+      return { order, totalAmount, isNew: true };
     });
 
-    const { order, totalAmount } = result;
+    const { order, isNew } = result;
 
-    try {
-      await emitBusinessEvent('ORDER_CREATED', { orderId: order.id });
-    } catch (e) {
-      console.error('Failed to emit ORDER_CREATED in clientCartCheckoutAction:', e);
+    if (isNew) {
+      try {
+        await emitBusinessEvent('ORDER_CREATED', { orderId: order.id });
+      } catch (e) {
+        console.error('Failed to emit ORDER_CREATED in clientCartCheckoutAction:', e);
+      }
     }
 
-    const provider = process.env.PAYMENT_PROVIDER || 'mock';
-    if (provider === 'razorpay') {
-      const keyId = process.env.RAZORPAY_KEY_ID;
-      const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-      if (!keyId || !keySecret) {
-        return { error: 'Razorpay configuration error.' };
-      }
-
-      const razorpay = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret,
-      });
-
-      const amountInPaise = Math.round(totalAmount * 100);
-      const rzpOrder = await razorpay.orders.create({
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt: order.orderNumber,
-      });
-
-      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
-      await prisma.paymentRequest.create({
-        data: {
-          orderId: order.id,
-          provider: 'RAZORPAY',
-          providerPaymentLinkId: rzpOrder.id,
-          shortUrl: '',
-          amount: order.total,
-          status: 'CREATED',
-          expiresAt,
-        },
-      });
-
-      revalidatePath('/', 'layout');
-      return {
-        success: true,
-        useStandardCheckout: true,
-        orderId: order.id,
-        razorpayOrderId: rzpOrder.id,
-        amount: rzpOrder.amount,
-        currency: rzpOrder.currency,
-        orderNumber: order.orderNumber,
-        customerName: customer.name,
-        customerEmail: customer.email || '',
-        customerMobile: customer.normalizedMobile || customer.mobile || '',
-      };
-    } else {
-      // Generate Payment Link
-      const res = await createPaymentLink({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        amount: totalAmount,
-        customerName: customer.name,
-        customerMobile: customer.normalizedMobile || customer.mobile || '',
-        customerEmail: customer.email || undefined,
-        expiresInMinutes: 120,
-      });
-
-      if (!res.success) {
-        return { error: res.error || 'Failed to generate checkout payment link.' };
-      }
-
-      // Store PaymentRequest record
-      const expiresAt = new Date(Date.now() + 120 * 60 * 1000);
-      await prisma.paymentRequest.create({
-        data: {
-          orderId: order.id,
-          provider: 'RAZORPAY',
-          providerPaymentLinkId: res.providerPaymentLinkId || '',
-          shortUrl: res.shortUrl || '',
-          amount: order.total,
-          status: 'CREATED',
-          expiresAt,
-        },
-      });
-
-      revalidatePath('/', 'layout');
-      return { success: true, paymentUrl: res.shortUrl, orderId: order.id };
-    }
+    return await startOrderPayment(order, customer);
   } catch (error: any) {
     console.error('clientCartCheckoutAction error:', error);
     return { error: error.message || 'Failed to complete cart checkout.' };

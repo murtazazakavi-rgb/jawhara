@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import WhatsAppInboxClient from './WhatsAppInboxClient';
+import AppShell from '@/components/AppShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,19 +36,21 @@ export default async function WhatsAppInboxPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display font-medium text-display-lg text-primary">Sales Center</h1>
-        <p className="font-body-md text-on-surface-variant/80 text-sm max-w-xl">
-          Track customer WhatsApp message feeds, view CRM profiles, and share recommended pieces to close deals.
-        </p>
-      </div>
+    <AppShell user={currentUser}>
+      <div className="space-y-6">
+        <div>
+          <h1 className="font-display font-medium text-display-lg text-primary">Sales Center</h1>
+          <p className="font-body-md text-on-surface-variant/80 text-sm max-w-xl">
+            Track customer WhatsApp message feeds, view CRM profiles, and share recommended pieces to close deals.
+          </p>
+        </div>
 
-      <WhatsAppInboxClient
-        initialConversations={conversations as any}
-        salesTeam={salesTeam as any}
-        currentUser={currentUser}
-      />
-    </div>
+        <WhatsAppInboxClient
+          initialConversations={conversations as any}
+          salesTeam={salesTeam as any}
+          currentUser={currentUser}
+        />
+      </div>
+    </AppShell>
   );
 }

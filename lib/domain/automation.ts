@@ -344,14 +344,15 @@ export async function emitBusinessEvent(eventType: string, payload: any) {
                     { type: 'text', text: customer.name },
                     { type: 'text', text: order.orderNumber },
                     { type: 'text', text: carrier || 'Courier' },
-                    { type: 'text', text: trackingNumber },
+                    { type: 'text', text: trackingNumber || 'To be shared shortly' },
                   ],
                 },
               ],
             },
           });
         } else {
-          const text = `*Order Dispatched!* 🚚\n\nDear ${customer.name},\nYour order *${order.orderNumber}* has been dispatched via ${carrier || 'Priority Courier'}.\n\n*Tracking Number:* ${trackingNumber}\n*Track / View Receipt:* ${finalTrackingUrl}\n\nThank you for shopping with Jawhara!`;
+          const trackingLine = trackingNumber ? `*Tracking Number:* ${trackingNumber}\n` : '';
+          const text = `*Order Dispatched!* 🚚\n\nDear ${customer.name},\nYour order *${order.orderNumber}* has been dispatched${carrier ? ` via ${carrier}` : ''}.\n\n${trackingLine}*Track / View Receipt:* ${finalTrackingUrl}\n\nThank you for shopping with Jawhara!`;
           sendRes = await sendWhatsAppMessage({
             to: customer.normalizedMobile,
             type: 'text',
