@@ -9,6 +9,30 @@ import { emitBusinessEvent } from '@/lib/domain/automation';
 import { revalidatePath } from 'next/cache';
 import { Prisma, MessageDirection, MessageStatus, OrderStatus } from '@prisma/client';
 import Razorpay from 'razorpay';
+import {
+  DEFAULT_CUSTOMER_PASSWORD,
+  hashCustomerPassword,
+  verifyCustomerPassword,
+} from '@/lib/security/customerPassword';
+
+/** Customer fields that are safe to return to the browser. */
+function toPublicCustomer(customer: {
+  id: string;
+  name: string;
+  email: string;
+  mobile: string | null;
+  normalizedMobile: string | null;
+  city: string | null;
+}) {
+  return {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    mobile: customer.mobile,
+    normalizedMobile: customer.normalizedMobile,
+    city: customer.city,
+  };
+}
 
 /**
  * Authenticates a client using email and password.
@@ -24,14 +48,25 @@ export async function clientLoginAction(data: {
   try {
     const customer = await prisma.customer.findUnique({
       where: { email: data.email.toLowerCase().trim() },
+      omit: { password: false },
     });
 
     if (!customer || customer.isArchived) {
       return { error: 'Invalid email or password.' };
     }
 
-    if (customer.password !== data.password.trim()) {
+    const attempt = data.password.trim();
+    const { valid, needsRehash } = await verifyCustomerPassword(attempt, customer.password);
+    if (!valid) {
       return { error: 'Invalid email or password.' };
+    }
+
+    // Upgrade legacy plaintext passwords to a hash on successful login
+    if (needsRehash) {
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { password: await hashCustomerPassword(attempt) },
+      });
     }
 
     // Start Customer session cookie
@@ -43,7 +78,7 @@ export async function clientLoginAction(data: {
 
     return { 
       success: true, 
-      mustChangePassword: customer.password === '123456' 
+      mustChangePassword: attempt === DEFAULT_CUSTOMER_PASSWORD,
     };
   } catch (error: any) {
     console.error('clientLoginAction error:', error);
@@ -67,7 +102,7 @@ export async function clientRegisterAndLoginAction(data: {
   }
 
   const emailLower = data.email.toLowerCase().trim();
-  const password = data.password?.trim() || '123456';
+  const password = data.password?.trim() || DEFAULT_CUSTOMER_PASSWORD;
   const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`;
 
   let normalized: string;
@@ -101,7 +136,7 @@ export async function clientRegisterAndLoginAction(data: {
         email: emailLower,
         mobile: data.mobile.trim(),
         normalizedMobile: normalized,
-        password,
+        password: await hashCustomerPassword(password),
         city: data.city?.trim() || null,
         source: 'WEBSITE',
       },
@@ -114,7 +149,7 @@ export async function clientRegisterAndLoginAction(data: {
       name: customer.name,
     });
 
-    return { success: true, customer };
+    return { success: true, customer: toPublicCustomer(customer) };
   } catch (error: any) {
     console.error('clientRegisterAndLoginAction error:', error);
     return { error: error.message || 'Registration failed.' };
@@ -137,18 +172,23 @@ export async function changeClientPasswordAction(data: {
     return { error: 'Both old and new passwords are required.' };
   }
 
-  if (data.newPassword.trim() === '123456') {
+  if (data.newPassword.trim() === DEFAULT_CUSTOMER_PASSWORD) {
     return { error: 'You cannot change your password back to the default password.' };
   }
 
   try {
-    if (customer.password !== data.oldPassword.trim()) {
+    const { password: storedPassword } = await prisma.customer.findUniqueOrThrow({
+      where: { id: customer.id },
+      select: { password: true },
+    });
+    const { valid } = await verifyCustomerPassword(data.oldPassword.trim(), storedPassword);
+    if (!valid) {
       return { error: 'Incorrect current password.' };
     }
 
     await prisma.customer.update({
       where: { id: customer.id },
-      data: { password: data.newPassword.trim() },
+      data: { password: await hashCustomerPassword(data.newPassword.trim()) },
     });
 
     return { success: true };
@@ -912,22 +952,28 @@ export async function clientGuestRegisterAction(data: {
   }
 
   try {
-    // Upsert Customer: if email exists, update it; otherwise create
-    const customer = await prisma.customer.upsert({
-      where: { email: emailLower },
-      update: {
-        name: fullName,
-        mobile: data.mobile.trim(),
-        normalizedMobile: normalized,
-        city: data.city?.trim() || null,
-        notes: data.address?.trim() ? `Guest Checkout Address: ${data.address.trim()}` : null,
+    // Never attach a guest to an existing account: that would let anyone who
+    // knows a customer's email or phone sign in as them without a password.
+    const existing = await prisma.customer.findFirst({
+      where: {
+        OR: [{ email: emailLower }, { normalizedMobile: normalized }],
       },
-      create: {
+      select: { id: true },
+    });
+    if (existing) {
+      return {
+        error: 'An account already exists with this email or mobile number. Please sign in to continue.',
+        requiresLogin: true,
+      };
+    }
+
+    const customer = await prisma.customer.create({
+      data: {
         name: fullName,
         email: emailLower,
         mobile: data.mobile.trim(),
         normalizedMobile: normalized,
-        password: '123456', // default password
+        password: await hashCustomerPassword(DEFAULT_CUSTOMER_PASSWORD),
         city: data.city?.trim() || null,
         source: 'WEBSITE',
         notes: data.address?.trim() ? `Guest Checkout Address: ${data.address.trim()}` : null,
@@ -941,7 +987,7 @@ export async function clientGuestRegisterAction(data: {
       name: customer.name,
     });
 
-    return { success: true, customer };
+    return { success: true, customer: toPublicCustomer(customer) };
   } catch (error: any) {
     console.error('clientGuestRegisterAction error:', error);
     return { error: error.message || 'Failed to register guest details.' };

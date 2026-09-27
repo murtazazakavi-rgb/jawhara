@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { normalizePhoneNumber } from '@/lib/phone';
+import { DEFAULT_CUSTOMER_PASSWORD, hashCustomerPassword } from '@/lib/security/customerPassword';
 
 export async function createCustomer(data: {
   name: string;
@@ -48,7 +49,7 @@ export async function createCustomer(data: {
         email: emailLower,
         mobile: data.mobile?.trim() || null,
         normalizedMobile: normalized,
-        password: data.password?.trim() || '123456',
+        password: await hashCustomerPassword(data.password?.trim() || DEFAULT_CUSTOMER_PASSWORD),
         city: data.city?.trim() || null,
         notes: data.notes?.trim() || null,
       },

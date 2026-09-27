@@ -463,6 +463,10 @@ export default function ProductActionsClient({
             const regRes = await clientGuestRegisterAction(guestInfo);
             if (regRes.error) {
               toast.error(regRes.error);
+              if (regRes.requiresLogin) {
+                setIsCheckoutOpen(false);
+                router.push(`/login?redirect=${encodeURIComponent(`/p/${productSlug}`)}`);
+              }
               return;
             }
             if (regRes.customer) {

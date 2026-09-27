@@ -832,7 +832,11 @@ export default function ShopClient({
             // Register guest customer first
             const regRes = await clientGuestRegisterAction(guestInfo);
             if (regRes.error) {
-              alert(regRes.error);
+              toast.error(regRes.error);
+              if (regRes.requiresLogin) {
+                setIsCheckoutOpen(false);
+                router.push('/login?redirect=/');
+              }
               return;
             }
             if (regRes.customer) {

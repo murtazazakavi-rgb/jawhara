@@ -5,6 +5,7 @@ import AppShell from '@/components/AppShell';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import DeleteCustomerButton from './DeleteCustomerButton';
+import { isDefaultCustomerPassword } from '@/lib/security/customerPassword';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,13 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
     notFound();
   }
 
+  // Only a yes/no reaches the page; the password itself never does.
+  const { password: storedPassword } = await prisma.customer.findUniqueOrThrow({
+    where: { id },
+    select: { password: true },
+  });
+  const usesDefaultPassword = await isDefaultCustomerPassword(storedPassword);
+
   // 2. Compute CRM intelligence metrics
   const paidOrders = customer.orders.filter((o) => o.paymentStatus === 'PAID');
   const totalSpend = paidOrders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -117,9 +125,9 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
                       {customer.email}
                     </p>
                   )}
-                  <p className="flex items-center justify-center sm:justify-start gap-2 font-mono text-xs text-primary font-bold">
+                  <p className="flex items-center justify-center sm:justify-start gap-2 text-xs text-on-surface-variant">
                     <span className="material-symbols-outlined text-[18px]">key</span>
-                    Portal Password: {customer.password}
+                    Portal password: {usesDefaultPassword ? 'Default (not yet changed)' : 'Set by customer'}
                   </p>
                   {customer.city && (
                     <p className="flex items-center justify-center sm:justify-start gap-2">

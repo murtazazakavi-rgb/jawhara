@@ -4,7 +4,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
 }
 
 enum UserRole {
@@ -227,7 +228,7 @@ model Customer {
   mobile                String? // Display/raw user input phone (now optional)
   normalizedMobile      String?                @unique // E.164 canonical unique index (now optional)
   email                 String                 @unique // Mandatory and unique for login
-  password              String                 @default("123456") // Cleartext password visible in CRM
+  password              String                 @default("123456") // bcrypt hash (legacy rows may be plaintext until next login); omitted from queries by default
   city                  String?
   notes                 String?
   whatsappWaId          String?

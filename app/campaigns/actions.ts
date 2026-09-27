@@ -16,6 +16,7 @@ interface SegmentRules {
  */
 async function fetchSegmentCustomers(rules: SegmentRules) {
   const customers = await prisma.customer.findMany({
+    where: { isArchived: false },
     include: {
       orders: {
         where: { paymentStatus: 'PAID' },
@@ -72,6 +73,21 @@ async function fetchSegmentCustomers(rules: SegmentRules) {
 }
 
 /**
+ * Splits segment matches into customers we may message and those excluded.
+ * Broadcasts only go to customers who opted in to WhatsApp (e.g. by
+ * messaging the boutique first) and have a WhatsApp number on file.
+ */
+async function fetchBroadcastAudience(rules: SegmentRules) {
+  const matches = await fetchSegmentCustomers(rules);
+  const eligible = matches.filter(c => c.whatsappOptIn && c.normalizedMobile);
+  return {
+    eligible,
+    notOptedIn: matches.filter(c => !c.whatsappOptIn).length,
+    noMobile: matches.filter(c => c.whatsappOptIn && !c.normalizedMobile).length,
+  };
+}
+
+/**
  * Gets campaigns with basic details.
  */
 export async function getCampaigns() {
@@ -90,8 +106,8 @@ export async function getSegmentCustomerCount(rules: SegmentRules) {
   const user = await getUserWithCapability('MANAGE_CAMPAIGNS');
   if (!user) throw new Error('Unauthorized.');
 
-  const matches = await fetchSegmentCustomers(rules);
-  return matches.length;
+  const { eligible, notOptedIn, noMobile } = await fetchBroadcastAudience(rules);
+  return { eligible: eligible.length, notOptedIn, noMobile };
 }
 
 /**
@@ -102,15 +118,24 @@ export async function createCampaignBroadcast(data: {
   templateKey: string;
   body: string;
   rules: SegmentRules;
+  /** Recipient count the sender confirmed; the send is refused if it changed. */
+  confirmedRecipientCount: number;
 }) {
   const user = await getUserWithCapability('MANAGE_CAMPAIGNS');
   if (!user) return { error: 'Unauthorized.' };
 
   try {
-    const matchingCustomers = await fetchSegmentCustomers(data.rules);
+    const { eligible: matchingCustomers } = await fetchBroadcastAudience(data.rules);
 
     if (matchingCustomers.length === 0) {
-      return { error: 'No customers match the selected segment filters.' };
+      return { error: 'No opted-in customers match the selected segment.' };
+    }
+
+    if (matchingCustomers.length !== data.confirmedRecipientCount) {
+      return {
+        error: `The audience changed to ${matchingCustomers.length} customers since you confirmed. Please review and send again.`,
+        recipientCount: matchingCustomers.length,
+      };
     }
 
     // 1. Create Campaign

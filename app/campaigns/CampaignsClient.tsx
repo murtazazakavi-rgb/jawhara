@@ -36,7 +36,8 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
   const [body, setBody] = useState('Dear {{name}},\n\nWe have just released our new Boutique collection. Stop by our lookbook to explore: https://jawhara-os.vercel.app');
   const [segmentType, setSegmentType] = useState<'all' | 'high_ltv' | 'no_orders' | 'color_sage'>('all');
   
-  const [matchingCount, setMatchingCount] = useState<number | null>(null);
+  const [audience, setAudience] = useState<{ eligible: number; notOptedIn: number; noMobile: number } | null>(null);
+  const matchingCount = audience?.eligible ?? null;
   const [loadingCount, setLoadingCount] = useState(false);
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
@@ -55,8 +56,7 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
     const fetchCount = async () => {
       setLoadingCount(true);
       try {
-        const count = await getSegmentCustomerCount(getRulesObject());
-        setMatchingCount(count);
+        setAudience(await getSegmentCustomerCount(getRulesObject()));
       } catch (err) {
         console.error(err);
       } finally {
@@ -90,7 +90,14 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
   // Handle broadcast submission
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !body.trim() || sendingBroadcast) return;
+    if (!name.trim() || !body.trim() || sendingBroadcast || !matchingCount) return;
+
+    const preview = body.replace(/\{\{name\}\}/gi, 'Ayesha');
+    const confirmed = confirm(
+      `Send "${name.trim()}" on WhatsApp to ${matchingCount} customer${matchingCount === 1 ? '' : 's'}?\n\n` +
+      `Preview:\n${preview}\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
 
     setSendingBroadcast(true);
     try {
@@ -99,10 +106,14 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
         templateKey,
         body,
         rules: getRulesObject(),
+        confirmedRecipientCount: matchingCount,
       });
 
       if (res.error) {
         alert(res.error);
+        if ('recipientCount' in res && typeof res.recipientCount === 'number') {
+          setAudience(prev => (prev ? { ...prev, eligible: res.recipientCount as number } : prev));
+        }
       } else {
         alert('Broadcast dispatched successfully!');
         window.location.reload(); // Reload to pick up new campaign
@@ -279,11 +290,24 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
               </div>
 
               {/* Preview target recipients count */}
-              <div className="p-3 bg-secondary-container/10 border border-outline-variant/35 rounded text-xs flex justify-between items-center mt-2">
-                <span className="text-outline">Live Match Preview:</span>
-                <span className="font-bold text-primary font-mono">
-                  {loadingCount ? 'calculating...' : `${matchingCount ?? 0} customers`}
-                </span>
+              <div className="p-3 bg-secondary-container/10 border border-outline-variant/35 rounded text-xs flex flex-col gap-1 mt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-outline">Will receive this message:</span>
+                  <span className="font-bold text-primary font-mono">
+                    {loadingCount ? 'calculating...' : `${matchingCount ?? 0} customers`}
+                  </span>
+                </div>
+                {!loadingCount && audience && (audience.notOptedIn > 0 || audience.noMobile > 0) && (
+                  <p className="text-[11px] text-on-surface-variant">
+                    Excluded:{' '}
+                    {[
+                      audience.notOptedIn > 0 && `${audience.notOptedIn} not opted in to WhatsApp`,
+                      audience.noMobile > 0 && `${audience.noMobile} without a WhatsApp number`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5 mt-2">
@@ -308,7 +332,7 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={sendingBroadcast || matchingCount === 0}
+                  disabled={sendingBroadcast || loadingCount || !matchingCount}
                   className="flex-1 py-2 bg-primary text-white rounded font-label-md text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
                 >
                   {sendingBroadcast ? (

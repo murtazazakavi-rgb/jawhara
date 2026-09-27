@@ -1,11 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+function createPrismaClient() {
+  return new PrismaClient({
+    log: ['query'],
+    // Customer password hashes never leave the server unless a query opts in
+    // with `omit: { password: false }`.
+    omit: { customer: { password: true } },
+  });
+}
+
+const globalForPrisma = global as unknown as { prisma: ReturnType<typeof createPrismaClient> };
 
 export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ['query'],
-  });
+  globalForPrisma.prisma || createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

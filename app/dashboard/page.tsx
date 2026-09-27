@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentCustomer } from '@/lib/clientAuth';
 import ShopDashboardClient from './ShopDashboardClient';
+import { isDefaultCustomerPassword } from '@/lib/security/customerPassword';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,12 +95,18 @@ export default async function CustomerDashboardPage() {
     createdAt: m.createdAt.toISOString(),
   })) || []) : [];
 
+  const { password: storedPassword } = await prisma.customer.findUniqueOrThrow({
+    where: { id: customer.id },
+    select: { password: true },
+  });
+  const isDefaultPassword = await isDefaultCustomerPassword(storedPassword);
+
   return (
     <ShopDashboardClient
       customerName={customer.name}
       activeHolds={activeHolds}
       orders={orders}
-      isDefaultPassword={customer.password === '123456'}
+      isDefaultPassword={isDefaultPassword}
       chatMessages={chatMessages}
     />
   );
