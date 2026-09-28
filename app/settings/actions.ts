@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getUserWithCapability } from '@/lib/authz';
 import { revalidatePath } from 'next/cache';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 /**
  * Saves a system setting key-value pair.
@@ -231,6 +232,54 @@ export async function createStaffUserAction(data: {
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to create staff member.' };
+  }
+}
+
+/**
+ * Sets a new temporary password for a staff member and returns it once, so
+ * an owner/admin can pass it on. Admins cannot reset owner accounts.
+ */
+export async function resetStaffPasswordAction(targetId: string) {
+  const user = await getUserWithCapability('MANAGE_SETTINGS');
+  if (!user) {
+    return { error: 'Unauthorized.' };
+  }
+
+  try {
+    const target = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, email: true, role: true },
+    });
+    if (!target) {
+      return { error: 'Staff member not found.' };
+    }
+    if (target.role === 'OWNER' && user.role !== 'OWNER') {
+      return { error: 'Only owners can reset an owner\'s password.' };
+    }
+
+    // 12 characters from an unambiguous alphabet (no 0/O, 1/l/I)
+    const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    const bytes = crypto.randomBytes(12);
+    const temporaryPassword = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+
+    await prisma.user.update({
+      where: { id: target.id },
+      data: { password: await bcrypt.hash(temporaryPassword, 10) },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        entityType: 'USER',
+        entityId: target.id,
+        action: 'PASSWORD_RESET',
+        userId: user.id,
+        metadata: JSON.stringify({ email: target.email }),
+      },
+    });
+
+    return { success: true, temporaryPassword };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to reset password.' };
   }
 }
 

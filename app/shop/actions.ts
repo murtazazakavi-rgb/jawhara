@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendWhatsAppMessage } from '@/lib/integrations/whatsapp/provider';
 import { normalizePhoneNumber } from '@/lib/phone';
+import { findCustomerByLoginIdentifier } from '@/lib/customerLookup';
 import { setCustomerSession, getCurrentCustomer } from '@/lib/clientAuth';
 import { createPaymentLink } from '@/lib/integrations/payments/provider';
 import { emitBusinessEvent } from '@/lib/domain/automation';
@@ -210,17 +211,9 @@ export async function clientLoginAction(data: {
   }
 
   try {
-    const customer = identifier.includes('@')
-      ? await prisma.customer.findUnique({
-          where: { email: identifier.toLowerCase() },
-          omit: { password: false },
-        })
-      : await prisma.customer.findUnique({
-          where: { normalizedMobile: normalizePhoneNumber(identifier) },
-          omit: { password: false },
-        });
+    const customer = await findCustomerByLoginIdentifier(identifier);
 
-    if (!customer || customer.isArchived) {
+    if (!customer) {
       return { error: 'Invalid email/mobile number or password.' };
     }
 

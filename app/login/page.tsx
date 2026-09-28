@@ -142,12 +142,15 @@ function LoginPageContent() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="font-label-md text-xs text-on-surface-variant uppercase flex justify-between">
-                <span>Password</span>
-                <span className="text-[10px] lowercase text-outline normal-case tracking-normal">
-                  (Default: 123456)
-                </span>
-              </label>
+              <div className="flex justify-between items-baseline">
+                <label className="font-label-md text-xs text-on-surface-variant uppercase">Password</label>
+                <Link
+                  href={`/login/reset${redirectTo !== '/' ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`}
+                  className="text-sm text-primary font-semibold"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 type="password"
                 autoComplete="current-password"

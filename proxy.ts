@@ -27,6 +27,7 @@ export function proxy(request: NextRequest) {
   const isPublicPath =
     path === '/' ||
     path === '/login' ||
+    path === '/login/reset' ||
     path.startsWith('/admin/login') ||
     path.startsWith('/dashboard') ||
     path === '/account' || // customer pages check the customer session themselves

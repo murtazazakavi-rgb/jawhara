@@ -56,6 +56,7 @@ export default function LoginPage() {
           <div className="text-center z-10 mb-2">
             <h2 className="font-headline-md text-on-surface mb-2">Access Portal</h2>
             <p className="font-body-md text-on-surface-variant">Please sign in to continue.</p>
+            <p className="text-xs text-outline mt-2">Forgot your password? Ask the boutique owner to reset it from Settings → Staff.</p>
           </div>
 
           <form action={formAction} className="flex flex-col gap-5 z-10 w-full">

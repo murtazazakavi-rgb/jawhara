@@ -10,6 +10,7 @@ import {
   deleteCategoryAction,
   createStaffUserAction,
   deleteStaffUserAction,
+  resetStaffPasswordAction,
   createCollectionAction,
   deleteCollectionAction,
   toggleCollectionStatusAction
@@ -164,6 +165,25 @@ export default function SettingsClient({
       console.error(err);
     } finally {
       setIsCreatingStaff(false);
+    }
+  };
+
+  const handleResetStaffPassword = async (id: string, email: string) => {
+    if (!confirm(`Reset the password for ${email}? Their current password will stop working.`)) return;
+    try {
+      const res = await resetStaffPasswordAction(id);
+      if (res.error) {
+        alert(res.error);
+      } else if (res.temporaryPassword) {
+        // Shown once; it isn't stored anywhere in plain text
+        prompt(
+          `New temporary password for ${email}.\nCopy it now and share it with them privately — it won't be shown again.`,
+          res.temporaryPassword
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to reset password.');
     }
   };
 
@@ -1139,7 +1159,15 @@ export default function SettingsClient({
                             {staff.role}
                           </span>
                         </td>
-                        <td className="font-body-md text-sm py-4 text-right">
+                        <td className="font-body-md text-sm py-4 text-right whitespace-nowrap">
+                          {!(staff.role === 'OWNER' && currentUserRole !== 'OWNER') && (
+                            <button
+                              onClick={() => handleResetStaffPassword(staff.id, staff.email)}
+                              className="text-primary hover:underline text-xs font-label-md uppercase tracking-wider cursor-pointer mr-4"
+                            >
+                              Reset password
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteStaff(staff.id, staff.email)}
                             className="text-error hover:text-error/85 hover:underline text-xs font-label-md uppercase tracking-wider cursor-pointer"
